@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CSE-07 Batch Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Hind+Siliguri:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    --paper:#F4F7F0;
+    --paper-2:#E9EFE3;
+    --ink:#1B2430;
+    --ink-soft:#586258;
+    --line:#C7D2BE;
+    --line-strong:#AAB89F;
+    --accent:#B08A3E;
+    --accent-ink:#8A6A2C;
+    --credit:#3C6E47;
+    --debit:#A23B33;
+    --surface:#FCFBF7;
+    --surface-2:#F1F4EC;
+    --shadow:rgba(27,36,48,.10);
+    --radius:10px;
+    --focus:#2F6FED;
+    --font-display:'Tiro Bangla','Noto Serif Bengali',Georgia,serif;
+    --font-sans:'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --paper-2:#171C14; --ink:#EAEEE4; --ink-soft:#9CA895;
+      --line:#2C3427; --line-strong:#3A4432; --accent:#D8B36B; --accent-ink:#E7C989;
+      --credit:#79C48D; --debit:#E4796F; --surface:#1A1F16; --surface-2:#20261B;
+      --shadow:rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --paper-2:#171C14; --ink:#EAEEE4; --ink-soft:#9CA895;
+    --line:#2C3427; --line-strong:#3A4432; --accent:#D8B36B; --accent-ink:#E7C989;
+    --credit:#79C48D; --debit:#E4796F; --surface:#1A1F16; --surface-2:#20261B;
+    --shadow:rgba(0,0,0,.35);
+  }
+  *,*::before,*::after{ box-sizing:inherit; }
+  html,body{ margin:0; padding:0; }
+  html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+  body{ background:var(--paper); color:var(--ink); font-family:var(--font-sans); font-size:15px; line-height:1.5; -webkit-tap-highlight-color:transparent; }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none!important; transition:none!important; } }
+  a{ color:var(--accent-ink); }
+  button,input,select,textarea{ font-family:inherit; font-size:inherit; color:inherit; }
+  :focus-visible{ outline:2px solid var(--focus); outline-offset:2px; border-radius:4px; }
+
+  .skip-link{ position:absolute; left:-9999px; top:auto; background:var(--accent); color:#1B2430; padding:10px 16px; border-radius:8px; z-index:10001; font-weight:700; text-decoration:none; }
+  .skip-link:focus{ left:12px; top:calc(12px + env(safe-area-inset-top,0px)); }
+
+  /* ---------- Topbar ---------- */
+  .topbar{ position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--paper-2); border-bottom:3px double var(--line-strong); }
+  .topbar-inner{ max-width:880px; margin:0 auto; display:flex; align-items:center; gap:10px; padding:10px 14px; }
+  .brand{ flex:0 0 auto; min-width:0; }
+  .brand-title{ font-family:var(--font-display); font-size:17px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:38vw; }
+  .brand-sub{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .tabs{ flex:1 1 auto; display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; padding:2px 0; }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab{ flex:0 0 auto; background:transparent; border:1px solid transparent; border-radius:8px; padding:7px 12px; font-size:13.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; white-space:nowrap; }
+  .tab.active{ background:var(--surface); color:var(--accent-ink); border-color:var(--line); }
+  .tab-add{ font-size:16px; font-weight:700; color:var(--accent-ink); }
+  .icon-btn{ flex:0 0 auto; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; }
+
+  main{ max-width:880px; margin:0 auto; padding:16px 14px 48px; }
+  main:focus{ outline:none; }
+  .page-header{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .page-title{ font-family:var(--font-display); font-size:22px; font-weight:600; }
+  .page-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .toolbar-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+
+  .btn{ appearance:none; -webkit-appearance:none; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink); padding:9px 14px; border-radius:8px; font-weight:600; font-size:13.5px; cursor:pointer; }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#1B2430; }
+  .btn-ghost{ background:transparent; }
+  .btn-danger{ background:transparent; border-color:var(--debit); color:var(--debit); }
+  .btn-sm{ padding:6px 10px; font-size:12.5px; }
+  .btn-block{ display:block; width:100%; text-align:center; margin-top:10px; }
+  .icon-btn-sm{ width:34px; height:34px; border-radius:7px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:13px; display:inline-flex; align-items:center; justify-content:center; }
+  .icon-btn-sm.danger{ color:var(--debit); border-color:var(--debit); }
+  .icon-btn-sm[disabled]{ opacity:.35; cursor:not-allowed; }
+  .search-input{ flex:1 1 220px; border:1px solid var(--line-strong); background:var(--surface); border-radius:8px; padding:9px 12px; }
+  .sort-select{ border:1px solid var(--line-strong); background:var(--surface); border-radius:8px; padding:9px 10px; font-size:12.5px; }
+  .filter-chips{ display:flex; gap:6px; flex-wrap:wrap; }
+  .chip{ border:1px solid var(--line-strong); background:var(--surface); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; }
+  .chip.active{ background:var(--accent); border-color:var(--accent); color:#1B2430; }
+
+  /* ---------- List / register rows ---------- */
+  .list{ display:flex; flex-direction:column; gap:8px; }
+  .row{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .row-main{ display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; }
+  .row-roll{ font-family:var(--font-mono); font-weight:600; font-size:12.5px; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:4px 7px; min-width:26px; text-align:center; }
+  .row-roll.sm{ padding:3px 6px; font-size:11.5px; }
+  .row-roll.date-chip{ min-width:78px; font-size:11px; }
+  .row-name{ flex:1 1 auto; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pill{ font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap; }
+  .pill-c0{ background:rgba(60,110,71,.14); color:var(--credit); }
+  .pill-c1{ background:rgba(176,138,62,.18); color:var(--accent-ink); }
+  .pill-c2{ background:rgba(162,59,51,.14); color:var(--debit); }
+  .pill-c3{ background:rgba(47,111,237,.14); color:#2F6FED; }
+  .pill-c4{ background:rgba(124,77,180,.14); color:#7C4DB4; }
+  .pill-c5{ background:rgba(24,140,140,.14); color:#188C8C; }
+  .due-flag{ font-size:10.5px; font-weight:700; color:var(--debit); background:rgba(162,59,51,.12); padding:3px 7px; border-radius:999px; white-space:nowrap; }
+  .streak-badge{ font-size:11px; font-weight:700; color:#B45309; background:rgba(180,83,9,.12); padding:3px 8px; border-radius:999px; white-space:nowrap; }
+  .complete-badge{ font-size:11px; color:var(--credit); font-weight:700; margin-left:6px; }
+  .onboard-banner{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-bottom:14px; font-size:13px; }
+  .due-list{ display:flex; flex-direction:column; gap:8px; }
+  .due-row{ display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:9px 12px; }
+  .due-row-name{ flex:1 1 auto; font-weight:600; font-size:13.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .due-row-amount{ font-family:var(--font-mono); font-weight:600; color:var(--debit); white-space:nowrap; }
+  .chevron{ font-size:16px; color:var(--ink-soft); transition:transform .15s ease; display:inline-block; }
+  .chevron.open{ transform:rotate(180deg); }
+  .row-detail{ padding:4px 14px 14px; border-top:1px dashed var(--line); }
+  .field-line{ display:flex; justify-content:space-between; gap:10px; padding:6px 0; font-size:13px; border-bottom:1px dotted var(--line); }
+  .field-line:last-of-type{ border-bottom:none; }
+  .field-label{ color:var(--ink-soft); }
+  .field-value{ text-align:right; font-weight:500; }
+  .muted{ color:var(--ink-soft); font-style:italic; }
+  .muted-inline{ color:var(--ink-soft); font-size:11.5px; font-weight:500; }
+  .row-actions{ display:flex; gap:8px; margin-top:10px; }
+  .empty-state{ text-align:center; padding:28px 16px; color:var(--ink-soft); border:1px dashed var(--line-strong); border-radius:var(--radius); background:var(--surface-2); }
+
+  /* ---------- Fund summary ---------- */
+  .cards-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .stat-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px; }
+  .stat-card-label{ font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .stat-card-value{ font-family:var(--font-mono); font-weight:600; font-size:16px; }
+  .stat-card.credit .stat-card-value{ color:var(--credit); }
+  .stat-card.debit .stat-card-value{ color:var(--debit); }
+  @media (max-width:520px){ .cards-grid{ grid-template-columns:1fr; } }
+
+  .trend-strip{ display:flex; align-items:flex-end; gap:8px; height:96px; padding:10px 4px 4px; margin-bottom:20px; border-bottom:1px dashed var(--line); }
+  .trend-bar-wrap{ display:flex; flex-direction:column; align-items:center; gap:4px; flex:1 1 0; }
+  .trend-bar{ width:100%; max-width:22px; background:var(--credit); border-radius:3px 3px 0 0; min-height:4px; }
+  .trend-bar-label{ font-size:10px; color:var(--ink-soft); }
+
+  .section-block{ margin-bottom:26px; }
+  .section-block-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .section-block-title{ font-family:var(--font-display); font-size:17px; font-weight:600; }
+
+  .month-list{ display:flex; flex-direction:column; gap:8px; }
+  .month-row{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .month-row-header{ display:flex; align-items:center; gap:10px; padding:11px 12px; cursor:pointer; }
+  .month-name{ flex:1 1 auto; font-weight:600; }
+  .month-stats{ font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft); }
+  .month-progress{ height:4px; background:var(--surface-2); }
+  .month-progress-bar{ height:100%; background:var(--credit); }
+  .month-detail{ padding:10px 12px 14px; border-top:1px dashed var(--line); }
+  .month-detail-toolbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .form-label-sm{ font-size:12px; color:var(--ink-soft); }
+  .form-input-sm{ width:80px; border:1px solid var(--line-strong); background:var(--surface); border-radius:6px; padding:5px 7px; font-family:var(--font-mono); }
+  .pay-row{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px dotted var(--line); }
+  .pay-row:last-child{ border-bottom:none; }
+  .pay-name{ flex:1 1 auto; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pay-amount{ width:70px; border:1px solid var(--line-strong); background:var(--surface); border-radius:6px; padding:5px 6px; font-family:var(--font-mono); font-size:12.5px; }
+  .switch{ position:relative; display:inline-block; width:38px; height:22px; flex:0 0 auto; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .slider{ position:absolute; inset:0; background:var(--line-strong); border-radius:999px; cursor:pointer; transition:.15s; }
+  .switch .slider::before{ content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; }
+  .switch input:checked + .slider{ background:var(--credit); }
+  .switch input:checked + .slider::before{ transform:translateX(16px); }
+  .switch input:focus-visible + .slider{ outline:2px solid var(--focus); outline-offset:2px; }
+
+  .expense-list{ display:flex; flex-direction:column; gap:8px; }
+  .expense-amount{ font-family:var(--font-mono); font-weight:600; color:var(--debit); white-space:nowrap; }
+
+  /* ---------- Modal ---------- */
+  #modalRoot{ position:fixed; inset:0; z-index:9999; display:none; }
+  #modalRoot.open{ display:block; }
+  .modal-backdrop{ position:absolute; inset:0; background:rgba(20,24,18,.45); display:flex; align-items:flex-end; justify-content:center; }
+  @media (min-width:640px){ .modal-backdrop{ align-items:center; padding:24px; } }
+  .modal{ background:var(--paper); width:100%; max-width:560px; max-height:92vh; overflow-y:auto; border-radius:16px 16px 0 0; box-shadow:0 -6px 30px var(--shadow); padding-bottom:env(safe-area-inset-bottom,0px); }
+  .modal:focus{ outline:none; }
+  @media (min-width:640px){ .modal{ border-radius:14px; } }
+  .modal-header{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px 8px; position:sticky; top:0; background:var(--paper); }
+  .modal-title{ font-family:var(--font-display); font-size:18px; font-weight:600; }
+  .modal-close{ border:none; background:var(--surface-2); width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:14px; }
+  .modal-body{ padding:6px 18px 4px; }
+  .modal-footer{ display:flex; justify-content:flex-end; gap:10px; padding:14px 18px 18px; }
+
+  .form-group{ margin-bottom:12px; }
+  .form-row{ display:flex; gap:10px; }
+  .form-row .form-group{ flex:1 1 0; }
+  .flex2{ flex:2 1 0; }
+  .form-label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:600; }
+  .form-input,.form-select,textarea.form-input{ width:100%; border:1px solid var(--line-strong); background:var(--surface); border-radius:8px; padding:9px 10px; }
+  .form-hint{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .checkbox-group .form-check{ display:flex; align-items:center; gap:8px; font-weight:500; }
+
+  /* ---------- Settings ---------- */
+  .settings-tabs{ display:flex; gap:4px; overflow-x:auto; padding:0 18px 8px; border-bottom:1px solid var(--line); }
+  .stab{ flex:0 0 auto; border:none; background:transparent; padding:8px 10px; font-weight:600; font-size:12.5px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  .stab.active{ color:var(--accent-ink); border-bottom-color:var(--accent); }
+  .settings-body{ padding-top:12px; }
+  .settings-row{ display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dotted var(--line); }
+  .settings-nav-input{ flex:1 1 auto; border:1px solid var(--line); background:var(--surface); border-radius:7px; padding:7px 9px; }
+  .settings-row-actions{ display:flex; gap:6px; flex:0 0 auto; }
+  .settings-field-info{ flex:1 1 auto; font-size:13.5px; }
+  .badge-core{ font-size:10.5px; font-weight:700; color:var(--ink-soft); border:1px solid var(--line); padding:2px 7px; border-radius:999px; }
+  .inline-field-add{ display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+  .inline-field-add input{ flex:1 1 120px; }
+  .inline-field-add select{ flex:0 0 110px; }
+  .danger-zone{ margin-top:20px; border:1px dashed var(--debit); border-radius:10px; padding:12px; }
+  .danger-zone-title{ font-weight:700; color:var(--debit); font-size:13px; margin-bottom:8px; }
+  .builder-field-row{ display:flex; gap:6px; margin-bottom:6px; align-items:center; }
+  .builder-field-row input{ flex:1 1 auto; border:1px solid var(--line); background:var(--surface); border-radius:7px; padding:7px 9px; }
+  .builder-field-row select{ flex:0 0 108px; border:1px solid var(--line); background:var(--surface); border-radius:7px; padding:7px 6px; }
+  .format-choice{ display:flex; gap:8px; flex-wrap:wrap; }
+  .format-btn.active{ background:var(--accent); border-color:var(--accent); color:#1B2430; }
+
+  /* ---------- Options editor (drag & drop) ---------- */
+  .options-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .option-item{ display:flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .drag-handle{ cursor:grab; color:var(--ink-soft); font-size:16px; padding:0 2px; touch-action:none; }
+  .option-input{ flex:1 1 auto; border:1px solid var(--line); background:var(--surface); border-radius:6px; padding:7px 9px; min-width:0; }
+  .sortable-ghost{ opacity:.4; }
+  .sortable-chosen{ background:var(--surface); }
+
+  /* ---------- Toast ---------- */
+  #toastContainer{ position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translate(-50%,20px); background:var(--ink); color:var(--paper); padding:10px 16px; border-radius:999px; font-size:13px; opacity:0; pointer-events:none; transition:.2s; z-index:10000; max-width:92vw; display:flex; align-items:center; gap:10px; justify-content:center; }
+  #toastContainer.show{ opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+  .toast-undo{ background:transparent; border:1px solid var(--paper); color:var(--paper); border-radius:6px; padding:4px 10px; font-weight:700; font-size:12px; cursor:pointer; flex:0 0 auto; }
+
+  /* ---------- Export sheet (rendered off-screen for PDF/PNG) ---------- */
+  .export-sheet{ background:#FCFBF7; color:#1B2430; font-family:'Hind Siliguri','Noto Sans Bengali',sans-serif; padding:28px; }
+  .export-head{ border-bottom:3px double #AAB89F; padding-bottom:10px; margin-bottom:16px; }
+  .export-title{ font-size:20px; font-weight:700; }
+  .export-sub{ font-size:12px; color:#586258; margin-top:2px; }
+  .export-sheet h3{ font-size:15px; margin:18px 0 8px; }
+  .export-sheet h4{ font-size:13px; margin:14px 0 6px; color:#586258; }
+  .export-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .export-table th,.export-table td{ border:1px solid #C7D2BE; padding:6px 8px; text-align:left; }
+  .export-table th{ background:#E9EFE3; }
+</style>
+</head>
+<body>
+  <a href="#main" class="skip-link">মূল কনটেন্টে যান</a>
+  <div class="topbar" id="nav" role="navigation" aria-label="প্রধান নেভিগেশন"></div>
+  <main id="main" tabindex="-1"></main>
+  <div id="modalRoot"></div>
+  <div id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script>
+  (function(){
+    "use strict";
+
+    /* ================= Seed data ================= */
+    var SEED_NAMES = [
+      [1,"Mst. Marjan Akter"],[2,"Simanta Dey"],[3,"Md. Anowar Hossain"],[4,"Mst. Lameyea Akter"],
+      [5,"Mumtahina Akther Saba"],[6,"Md. Mahfujar Rahman"],[7,"Urfa Hasan Fattah"],[8,"Md. Mushfiqur Rahman"],
+      [9,"Rimon Sarker"],[10,"Md. Minhaz Jubayer Afridi"],[11,"Makshuda Akter"],[12,"Md. Sanjid Hossain"],
+      [13,"Jibonananda Sarker"],[14,"Shahida Islam"],[15,"Sadiya Afrin Sristy"],[16,"Md. Yasin Arafat"],
+      [17,"Fojayel Ahammad"],[18,"Ullas Chandra Barmon"],[19,"S. M. Shahriar Rahman Ratul"],[20,"Md. Monuar Hosen"],
+      [21,"Z. M. Hasib Minhaz Zawad"],[22,"Nazmus Sakib"],[23,"Md. Zihad Hossain"],[24,"Arian Siddik Nishan"],
+      [25,"Mohammad Shams Saim"],[26,"Samiya Monzur"],[27,"Abir Roy Chowdhury"],[28,"Tanvir Ahmed Tanim"],
+      [29,"Shubo Chandro Dey"],[30,"Md. Abu Sabbir"],[31,"Siam Hossen"],[32,"Foysal Mahamud"],
+      [33,"Md. Abu Said"],[34,"Emon Chandra Das"],[35,"Md. Alfaj Rahman"],[36,"Mst. Maharun Maysha"],
+      [37,"Md. Rabius Sany"],[38,"Md. Abir Hossain Siam"],[39,"Jakia Akter Pretty"],[40,"Ranan Sarker Dipon"],
+      [41,"Avi Shek Das"],[42,"Sumaiya Akter"],[43,"Jubayed Islam Polin"],[44,"Ritu Akter"],[45,"Marjana Afrin Maju"]
+    ];
+    function buildSeedStudents(){
+      return SEED_NAMES.map(function(pair){
+        var roll=pair[0], name=pair[1];
+        return { id:'s'+roll, roll:roll, name:name, fields:{ fbId:'', status:'Regular', detailsLink:'https://example.com/profile/'+roll } };
+      });
+    }
+    function freshDefaultState(){
+      return {
+        meta:{ batchName:'CSE-07 · Netrokona University', session:'Session 2025-26', currency:'৳' },
+        studentSchema:[
+          {key:'fbId', label:'Facebook', type:'link', core:true},
+          {key:'status', label:'Status', type:'select', options:['Regular','Irregular','2nd Time'], core:true},
+          {key:'detailsLink', label:'বিস্তারিত লিংক', type:'link', core:true}
+        ],
+        students: buildSeedStudents(),
+        nav:[ {id:'home', label:'হোম', locked:true}, {id:'fund', label:'ব্যাচ ফান্ড', locked:true} ],
+        sections:{},
+        fund:{ monthlyAmount:100, months:[], expenses:[] },
+        ui:{ activeTab:'home', onboarded:false, theme:'auto' }
+      };
+    }
+    function migrateState(s){
+      var statusField = s.studentSchema && s.studentSchema.find(function(f){ return f.key==='status'; });
+      if(statusField){
+        var opts = statusField.options || [];
+        var isOldDefault = opts.length===2 && opts[0]==='Regular' && opts[1]==='2nd Timer';
+        if(isOldDefault){
+          statusField.options = ['Regular','Irregular','2nd Time'];
+          (s.students||[]).forEach(function(st){
+            if(st.fields && st.fields.status==='2nd Timer') st.fields.status='2nd Time';
+          });
+        }
+      }
+      if(!s.ui) s.ui = {activeTab:'home'};
+      if(s.ui.onboarded===undefined) s.ui.onboarded = true; /* returning user, skip welcome banner */
+      if(s.ui.theme===undefined) s.ui.theme = 'auto';
+      return s;
+    }
+
+    var STORAGE_KEY = 'cse07_batch_ledger_v1';
+    var state;
+    function loadState(){
+      try{
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if(raw){ var parsed = JSON.parse(raw); if(parsed && parsed.students) return parsed; }
+      }catch(e){}
+      return freshDefaultState();
+    }
+    function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+
+    /* ================= Transient UI state ================= */
+    var homeSearch = '';
+    var homeFilter = 'all';
+    var homeSort = 'roll';
+    var expandedRows = new Set();
+    var expandedMonth = null;
+    var settingsTab = 'nav';
+    var builderFields = [];
+    var builderTitle = '';
+    var builderEditingSection = null;
+    var pendingConfirm = null;
+    var toastUndoCb = null;
+    var lastFocusedBeforeModal = null;
+    var optionsEditorList = [];
+    var optionsEditorOriginalTextById = {};
+    var optionsEditorOnSave = null;
+    var optionsEditorTitle = '';
+    var _downloads;
+
+    var PILL_PALETTE = ['pill-c0','pill-c1','pill-c2','pill-c3','pill-c4','pill-c5'];
+
+    /* ================= Helpers ================= */
+    function escapeHTML(s){
+      return String(s===undefined||s===null?'':s).replace(/[&<>"']/g, function(c){
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+      });
+    }
+    var escapeAttr = escapeHTML;
+    function fmt(n){ return state.meta.currency + Number(n||0).toLocaleString('en-US'); }
+    function monthLabel(key){
+      var parts = key.split('-'); var y=Number(parts[0]), m=Number(parts[1]);
+      return new Date(y, m-1, 1).toLocaleString('en-US',{month:'long', year:'numeric'});
+    }
+    function fieldTypeLabel(ty){
+      return ({text:'টেক্সট', number:'সংখ্যা', date:'তারিখ', link:'লিংক', checkbox:'চেকবক্স', select:'ড্রপডাউন'})[ty] || ty;
+    }
+    function uid(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+    function slugify(label){
+      var base = String(label).toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g,'_').replace(/^_+|_+$/g,'').slice(0,20);
+      return 'f_' + (base||'field') + '_' + Math.random().toString(36).slice(2,5);
+    }
+    function slugForFile(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'section'; }
+    function toast(msg){
+      var c = document.getElementById('toastContainer');
+      c.innerHTML = escapeHTML(msg);
+      c.classList.add('show');
+      toastUndoCb = null;
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function(){ c.classList.remove('show'); }, 2600);
+    }
+    function showUndoToast(msg, restoreFn){
+      var c = document.getElementById('toastContainer');
+      c.innerHTML = escapeHTML(msg) + ' <button type="button" class="toast-undo" data-action="toast-undo">আনডু</button>';
+      c.classList.add('show');
+      toastUndoCb = restoreFn;
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function(){ c.classList.remove('show'); toastUndoCb=null; }, 5000);
+    }
+    function statusOptions(){
+      var f = state.studentSchema.find(function(x){ return x.key==='status'; });
+      return f ? (f.options||[]) : [];
+    }
+    function statusPillClass(status){
+      var opts = statusOptions();
+      var idx = opts.indexOf(status);
+      if(idx<0) idx=0;
+      return PILL_PALETTE[idx % PILL_PALETTE.length];
+    }
+    function themeIcon(){
+      var t = (state.ui && state.ui.theme) || 'auto';
+      return t==='light' ? '☀️' : (t==='dark' ? '🌙' : '🌓');
+    }
+    function applyTheme(){
+      var t = (state.ui && state.ui.theme) || 'auto';
+      if(t==='auto') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', t);
+    }
+    function buildReminderMessage(s, due){
+      return 'হাই '+s.name+'! 👋 তোমার ব্যাচ ফান্ডে '+fmt(due)+' বকেয়া আছে। সময় করে পাঠিয়ে দিও, ধন্যবাদ! 🙏';
+    }
+    function showCelebration(label){ toast('🎉 '+label+' মাসের পুরো ফান্ড সংগ্রহ সম্পন্ন হয়েছে!'); }
+
+    /* ================= Data operations ================= */
+    function getPayment(m, studentId){ return m.payments[studentId] || {paid:false, amount:m.amount}; }
+    function studentDue(studentId){
+      var due=0;
+      state.fund.months.forEach(function(m){ var p=getPayment(m,studentId); if(!p.paid) due += Number(p.amount||0); });
+      return due;
+    }
+    function studentStreak(studentId){
+      var months = state.fund.months.slice().sort(function(a,b){ return b.key.localeCompare(a.key); });
+      var streak = 0;
+      for(var i=0;i<months.length;i++){
+        var p = getPayment(months[i], studentId);
+        if(p.paid) streak++; else break;
+      }
+      return streak;
+    }
+    function nextMonthKey(){
+      var keys = state.fund.months.map(function(m){ return m.key; }).sort();
+      var base;
+      if(keys.length){
+        var last = keys[keys.length-1];
+        var p = last.split('-'); var y=Number(p[0]), mo=Number(p[1]);
+        base = new Date(y, mo, 1);
+      } else { base = new Date(); }
+      var y2=base.getFullYear(), m2=String(base.getMonth()+1).padStart(2,'0');
+      return y2+'-'+m2;
+    }
+    function addMonth(){
+      var key = nextMonthKey();
+      if(state.fund.months.some(function(m){ return m.key===key; })){ toast('এই মাস আগে থেকেই আছে'); return; }
+      var amount = state.fund.monthlyAmount;
+      var payments = {};
+      state.students.forEach(function(s){ payments[s.id] = {paid:false, amount:amount}; });
+      state.fund.months.push({key:key, amount:amount, payments:payments});
+      state.fund.months.sort(function(a,b){ return a.key.localeCompare(b.key); });
+      expandedMonth = key;
+      render();
+    }
+    function deleteMonth(key){
+      state.fund.months = state.fund.months.filter(function(m){ return m.key!==key; });
+      if(expandedMonth===key) expandedMonth=null;
+      render();
+    }
+    function setMonthAmount(key, val){
+      var m = state.fund.months.find(function(x){ return x.key===key; }); if(!m) return;
+      m.amount = Number(val||0);
+    }
+    function setPaymentAmount(key, studentId, val){
+      var m = state.fund.months.find(function(x){ return x.key===key; }); if(!m) return;
+      if(!m.payments[studentId]) m.payments[studentId] = {paid:false, amount:0};
+      m.payments[studentId].amount = Number(val||0);
+    }
+    function togglePayment(key, studentId, checked){
+      var m = state.fund.months.find(function(x){ return x.key===key; }); if(!m) return;
+      var expected = monthExpected(m);
+      var beforeFull = expected>0 && monthCollected(m) >= expected;
+      if(!m.payments[studentId]) m.payments[studentId] = {paid:false, amount:m.amount};
+      m.payments[studentId].paid = !!checked;
+      var afterFull = expected>0 && monthCollected(m) >= expected;
+      if(checked && !beforeFull && afterFull) showCelebration(monthLabel(m.key));
+    }
+    function markAllPaid(key){
+      var m = state.fund.months.find(function(x){ return x.key===key; }); if(!m) return;
+      state.students.forEach(function(s){
+        if(!m.payments[s.id]) m.payments[s.id] = {paid:false, amount:m.amount};
+        m.payments[s.id].paid = true;
+      });
+      if(monthExpected(m)>0) showCelebration(monthLabel(m.key));
+      render();
+    }
+    function totalCollected(){
+      return state.fund.months.reduce(function(sum,m){
+        return sum + Object.keys(m.payments).reduce(function(s,k){ var p=m.payments[k]; return s + (p.paid?Number(p.amount||0):0); }, 0);
+      }, 0);
+    }
+    function totalExpense(){ return state.fund.expenses.reduce(function(s,e){ return s+Number(e.amount||0); }, 0); }
+    function balanceAmt(){ return totalCollected() - totalExpense(); }
+    function monthCollected(m){ return Object.keys(m.payments).reduce(function(s,k){ var p=m.payments[k]; return s+(p.paid?Number(p.amount||0):0); }, 0); }
+    function monthExpected(m){ return state.students.length * Number(m.amount||0); }
+
+    function addExpense(data){
+      state.fund.expenses.push({ id:uid(), date:data.date, title:data.title, category:data.category, amount:Number(data.amount||0), note:data.note||'' });
+      state.fund.expenses.sort(function(a,b){ return a.date.localeCompare(b.date); });
+      render();
+    }
+    function updateExpense(id, data){
+      var e = state.fund.expenses.find(function(x){ return x.id===id; }); if(!e) return;
+      e.date=data.date; e.title=data.title; e.category=data.category; e.amount=Number(data.amount||0); e.note=data.note||'';
+      render();
+    }
+    function deleteExpenseSoft(id){
+      var idx = state.fund.expenses.findIndex(function(x){ return x.id===id; });
+      if(idx<0) return;
+      var snapshot = state.fund.expenses[idx];
+      state.fund.expenses.splice(idx,1);
+      render();
+      showUndoToast('খরচ মুছে ফেলা হয়েছে', function(){
+        state.fund.expenses.push(snapshot);
+        state.fund.expenses.sort(function(a,b){ return a.date.localeCompare(b.date); });
+        render();
+      });
+    }
+
+    function addStudent(data){
+      var id = uid();
+      var fields = {};
+      state.studentSchema.forEach(function(f){ fields[f.key] = (data[f.key]!==undefined && data[f.key]!==null) ? data[f.key] : (f.type==='checkbox'?false:''); });
+      var student = { id:id, roll:data.roll, name:data.name, fields:fields };
+      state.students.push(student);
+      state.students.sort(function(a,b){ return (Number(a.roll)-Number(b.roll)) || String(a.name).localeCompare(String(b.name)); });
+      state.fund.months.forEach(function(m){ m.payments[id] = {paid:false, amount:m.amount}; });
+      render();
+    }
+    function updateStudent(id, data){
+      var s = state.students.find(function(x){ return x.id===id; }); if(!s) return;
+      s.roll = data.roll; s.name = data.name;
+      state.studentSchema.forEach(function(f){ if(data[f.key]!==undefined) s.fields[f.key]=data[f.key]; });
+      state.students.sort(function(a,b){ return (Number(a.roll)-Number(b.roll)) || String(a.name).localeCompare(String(b.name)); });
+      render();
+    }
+    function deleteStudentSoft(id){
+      var idx = state.students.findIndex(function(s){ return s.id===id; });
+      if(idx<0) return;
+      var snapshot = state.students[idx];
+      var paymentSnapshots = {};
+      state.fund.months.forEach(function(m){ if(m.payments[id]) paymentSnapshots[m.key]=m.payments[id]; });
+      state.students.splice(idx,1);
+      state.fund.months.forEach(function(m){ delete m.payments[id]; });
+      render();
+      showUndoToast('শিক্ষার্থী মুছে ফেলা হয়েছে', function(){
+        state.students.splice(Math.min(idx, state.students.length),0,snapshot);
+        state.fund.months.forEach(function(m){ if(paymentSnapshots[m.key]) m.payments[id]=paymentSnapshots[m.key]; });
+        render();
+      });
+    }
+    function addStudentField(field){
+      state.studentSchema.push(field);
+      state.students.forEach(function(s){ s.fields[field.key] = field.type==='checkbox' ? false : ''; });
+      render();
+    }
+    function removeStudentField(key){
+      state.studentSchema = state.studentSchema.filter(function(f){ return f.key!==key; });
+      state.students.forEach(function(s){ delete s.fields[key]; });
+      render();
+    }
+
+    function addSection(title, fields){
+      var id = uid();
+      state.sections[id] = { id:id, title:title, fields:fields, entries:[] };
+      state.nav.push({ id:id, label:title, locked:false, section:true });
+      state.ui.activeTab = id;
+      render();
+    }
+    function deleteNavItem(id){
+      var n = state.nav.find(function(x){ return x.id===id; });
+      if(!n || n.locked) return;
+      delete state.sections[id];
+      state.nav = state.nav.filter(function(x){ return x.id!==id; });
+      if(state.ui.activeTab===id) state.ui.activeTab='home';
+      render();
+    }
+    function renameNav(id, label){
+      var n = state.nav.find(function(x){ return x.id===id; }); if(!n) return;
+      n.label = label || n.label;
+      if(state.sections[id]) state.sections[id].title = n.label;
+      render();
+    }
+    function moveNav(id, dir){
+      var idx = state.nav.findIndex(function(n){ return n.id===id; });
+      var newIdx = idx+dir;
+      if(idx<0 || newIdx<0 || newIdx>=state.nav.length) return;
+      var tmp = state.nav[idx]; state.nav[idx]=state.nav[newIdx]; state.nav[newIdx]=tmp;
+    }
+    function addSectionEntry(sectionId, values){ state.sections[sectionId].entries.push({id:uid(), values:values}); render(); }
+    function updateSectionEntry(sectionId, entryId, values){
+      var e = state.sections[sectionId].entries.find(function(x){ return x.id===entryId; }); if(!e) return;
+      e.values = values; render();
+    }
+    function deleteSectionEntrySoft(sectionId, entryId){
+      var sec = state.sections[sectionId];
+      var idx = sec.entries.findIndex(function(e){ return e.id===entryId; });
+      if(idx<0) return;
+      var snapshot = sec.entries[idx];
+      sec.entries.splice(idx,1);
+      render();
+      showUndoToast('এন্ট্রি মুছে ফেলা হয়েছে', function(){
+        sec.entries.splice(Math.min(idx, sec.entries.length),0,snapshot);
+        render();
+      });
+    }
+    function resetAllData(){
+      state = freshDefaultState();
+      expandedRows=new Set(); expandedMonth=null; homeSearch=''; homeFilter='all'; homeSort='roll';
+      render(); toast('ডেটা রিসেট হয়েছে');
+    }
+
+    /* ================= Render: Nav ================= */
+    function renderNav(){
+      var tabsHTML = state.nav.map(function(n){
+        return '<button class="tab '+(state.ui.activeTab===n.id?'active':'')+'" data-action="nav-switch" data-tab="'+n.id+'" '+(state.ui.activeTab===n.id?'aria-current="page"':'')+'>'+escapeHTML(n.label)+'</button>';
+      }).join('');
+      return '' +
+      '<div class="topbar-inner">' +
+        '<div class="brand">' +
+          '<div class="brand-title">📒 ' + escapeHTML(state.meta.batchName) + '</div>' +
+          '<div class="brand-sub">' + escapeHTML(state.meta.session) + ' · ' + state.students.length + ' জন</div>' +
+        '</div>' +
+        '<div class="tabs">' + tabsHTML +
+          '<button class="tab tab-add" data-action="nav-add-section" aria-label="নতুন সেকশন যোগ করুন">+</button>' +
+        '</div>' +
+        '<button class="icon-btn" data-action="theme-toggle" aria-label="থিম পরিবর্তন করো">'+themeIcon()+'</button>' +
+        '<button class="icon-btn" data-action="open-settings" aria-label="কাস্টমাইজ সেটিংস">⚙</button>' +
+      '</div>';
+    }
+
+    /* ================= Render: Home ================= */
+    function getFilteredStudents(){
+      var q = homeSearch.trim().toLowerCase();
+      var list = state.students.filter(function(s){
+        var status = s.fields.status || 'Regular';
+        if(homeFilter!=='all' && status!==homeFilter) return false;
+        if(q && !((s.name||'').toLowerCase().indexOf(q)>-1 || String(s.roll).indexOf(q)>-1)) return false;
+        return true;
+      });
+      list = list.slice().sort(function(a,b){
+        if(homeSort==='name') return String(a.name).localeCompare(String(b.name));
+        if(homeSort==='status') return String(a.fields.status||'').localeCompare(String(b.fields.status||'')) || (Number(a.roll)-Number(b.roll));
+        return Number(a.roll)-Number(b.roll);
+      });
+      return list;
+    }
+    function renderStudentRow(s){
+      var open = expandedRows.has(s.id);
+      var status = s.fields.status || 'Regular';
+      var due = studentDue(s.id);
+      var streak = studentStreak(s.id);
+      var detailFields = state.studentSchema.map(function(f){
+        if(f.key==='status') return '';
+        var val = s.fields[f.key];
+        var display;
+        if(!val) display = '<span class="muted">যোগ করা হয়নি</span>';
+        else if(f.type==='link') display = '<a href="'+escapeAttr(val)+'" target="_blank" rel="noopener">লিংক দেখুন ↗</a>';
+        else display = escapeHTML(String(val));
+        return '<div class="field-line"><span class="field-label">'+escapeHTML(f.label)+'</span><span class="field-value">'+display+'</span></div>';
+      }).join('') +
+      (streak>=2 ? ('<div class="field-line"><span class="field-label">টানা পেমেন্ট</span><span class="field-value">🔥 '+streak+' মাস</span></div>') : '') +
+      (due>0 ? ('<div class="field-line"><span class="field-label">বকেয়া</span><span class="field-value" style="color:var(--debit)">'+fmt(due)+'</span></div>') : '');
+      return '' +
+      '<div class="row">' +
+        '<div class="row-main" data-action="row-toggle" data-id="'+s.id+'" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'" aria-controls="panel-'+s.id+'">' +
+          '<div class="row-roll">'+escapeHTML(String(s.roll))+'</div>' +
+          '<div class="row-name">'+escapeHTML(s.name)+'</div>' +
+          (due>0 ? '<span class="due-flag">বকেয়া</span>' : '') +
+          '<span class="pill '+statusPillClass(status)+'">'+escapeHTML(status)+'</span>' +
+          '<span class="chevron '+(open?'open':'')+'" aria-hidden="true">⌄</span>' +
+        '</div>' +
+        (open ? ('<div class="row-detail" id="panel-'+s.id+'">'+detailFields+
+          '<div class="row-actions">' +
+            '<button class="btn btn-sm" data-action="student-edit" data-id="'+s.id+'">সম্পাদনা</button>' +
+            (due>0 ? ('<button class="btn btn-sm" data-action="due-remind" data-id="'+s.id+'">রিমাইন্ডার</button>') : '') +
+            '<button class="btn btn-sm btn-danger" data-action="student-delete" data-id="'+s.id+'">মুছুন</button>' +
+          '</div></div>') : '') +
+      '</div>';
+    }
+    function renderHome(){
+      var list = getFilteredStudents();
+      var rows = list.map(renderStudentRow).join('') || '<div class="empty-state">🔎 কোনো শিক্ষার্থী পাওয়া যায়নি।</div>';
+      var filterChips = '<button class="chip '+(homeFilter==='all'?'active':'')+'" data-action="home-filter" data-filter="all">সবাই</button>' +
+        statusOptions().map(function(opt){
+          return '<button class="chip '+(homeFilter===opt?'active':'')+'" data-action="home-filter" data-filter="'+escapeAttr(opt)+'">'+escapeHTML(opt)+'</button>';
+        }).join('');
+      return '' +
+      '<div class="page-header">' +
+        '<div><div class="page-title">শিক্ষার্থীদের তালিকা</div><div class="page-meta">মোট '+state.students.length+' জন</div></div>' +
+        '<div class="toolbar-actions">' +
+          '<button class="btn btn-ghost" data-action="open-export" data-scope="students">এক্সপোর্ট</button>' +
+          '<button class="btn btn-primary" data-action="student-add">+ নতুন শিক্ষার্থী</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="toolbar">' +
+        '<input type="text" class="search-input" id="homeSearchInput" data-action="home-search" placeholder="নাম বা রোল দিয়ে খুঁজুন" aria-label="নাম বা রোল দিয়ে খুঁজুন" value="'+escapeAttr(homeSearch)+'">' +
+        '<select class="sort-select" id="homeSortSelect" data-action="home-sort" aria-label="সাজানোর ধরন">' +
+          '<option value="roll" '+(homeSort==='roll'?'selected':'')+'>রোল অনুযায়ী</option>' +
+          '<option value="name" '+(homeSort==='name'?'selected':'')+'>নাম অনুযায়ী</option>' +
+          '<option value="status" '+(homeSort==='status'?'selected':'')+'>স্ট্যাটাস অনুযায়ী</option>' +
+        '</select>' +
+        '<div class="filter-chips">'+filterChips+'</div>' +
+      '</div>' +
+      '<div class="list">'+rows+'</div>';
+    }
+
+    /* ================= Render: Fund ================= */
+    function renderTrendStrip(){
+      var months = state.fund.months.slice().sort(function(a,b){ return a.key.localeCompare(b.key); }).slice(-6);
+      if(!months.length) return '';
+      var maxVal = 1;
+      months.forEach(function(m){ maxVal = Math.max(maxVal, monthCollected(m), monthExpected(m)); });
+      var bars = months.map(function(m){
+        var h = Math.max(4, Math.round(monthCollected(m)/maxVal*70));
+        var lbl = monthLabel(m.key);
+        return '<div class="trend-bar-wrap" title="'+escapeAttr(lbl+': '+fmt(monthCollected(m)))+'">' +
+          '<div class="trend-bar" style="height:'+h+'px"></div>' +
+          '<div class="trend-bar-label">'+escapeHTML(lbl.split(' ')[0].slice(0,3))+'</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="trend-strip" role="img" aria-label="গত কয়েক মাসের কালেকশন ট্রেন্ড">'+bars+'</div>';
+    }
+    function renderTopDuePanel(){
+      var list = state.students.map(function(s){ return {s:s, due:studentDue(s.id)}; }).filter(function(x){ return x.due>0; });
+      if(!list.length) return '<div class="empty-state">🎉 সবাই ফান্ড পরিশোধ করে ফেলেছে — কোনো বকেয়া নেই!</div>';
+      list.sort(function(a,b){ return b.due-a.due; });
+      var top = list.slice(0,5);
+      var rows = top.map(function(x){
+        return '<div class="due-row">' +
+          '<div class="due-row-name">'+escapeHTML(x.s.name)+' <span class="row-roll sm">'+escapeHTML(String(x.s.roll))+'</span></div>' +
+          '<div class="due-row-amount">'+fmt(x.due)+'</div>' +
+          '<button type="button" class="btn btn-sm" data-action="due-remind" data-id="'+x.s.id+'">রিমাইন্ড</button>' +
+        '</div>';
+      }).join('');
+      var moreNote = list.length>5 ? ('<p class="form-hint">আরও '+(list.length-5)+' জনের বকেয়া আছে — হোম পেজে "বকেয়া" ট্যাগ দেখে চেক করতে পারো।</p>') : '';
+      return '<div class="due-list">'+rows+'</div>'+moreNote;
+    }
+    function renderMonthRow(m){
+      var open = expandedMonth===m.key;
+      var collected = monthCollected(m);
+      var expected = monthExpected(m);
+      var pct = expected ? Math.min(100, Math.round(collected/expected*100)) : 0;
+      var payRows = state.students.map(function(s){
+        var p = getPayment(m, s.id);
+        return '' +
+        '<div class="pay-row">' +
+          '<div class="pay-name"><span class="row-roll sm">'+escapeHTML(String(s.roll))+'</span>&nbsp; '+escapeHTML(s.name)+'</div>' +
+          '<input class="pay-amount" id="amt-'+m.key+'-'+s.id+'" type="number" min="0" data-action="payment-amount" data-month="'+m.key+'" data-student="'+s.id+'" value="'+p.amount+'" aria-label="'+escapeAttr(s.name+' এর পরিমাণ')+'">' +
+          '<label class="switch"><input type="checkbox" data-action="payment-toggle" data-month="'+m.key+'" data-student="'+s.id+'" '+(p.paid?'checked':'')+' aria-label="'+escapeAttr(s.name+' পেমেন্ট স্ট্যাটাস')+'"><span class="slider" aria-hidden="true"></span></label>' +
+        '</div>';
+      }).join('');
+      return '' +
+      '<div class="month-row">' +
+        '<div class="month-row-header" data-action="month-toggle" data-key="'+m.key+'" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'" aria-controls="panel-month-'+m.key+'">' +
+          '<div class="month-name">'+monthLabel(m.key)+(pct>=100?' <span class="complete-badge">✅ সম্পূর্ণ</span>':'')+'</div>' +
+          '<div class="month-stats">'+fmt(collected)+' / '+fmt(expected)+'</div>' +
+          '<span class="chevron '+(open?'open':'')+'" aria-hidden="true">⌄</span>' +
+        '</div>' +
+        '<div class="month-progress"><div class="month-progress-bar" style="width:'+pct+'%"></div></div>' +
+        (open ? ('<div class="month-detail" id="panel-month-'+m.key+'">' +
+          '<div class="month-detail-toolbar">' +
+            '<label class="form-label-sm" for="monthamt-'+m.key+'">মাসিক পরিমাণ:</label>' +
+            '<input class="form-input-sm" id="monthamt-'+m.key+'" type="number" min="0" data-action="month-amount" data-month="'+m.key+'" value="'+m.amount+'">' +
+            '<button class="btn btn-sm" data-action="month-markall" data-month="'+m.key+'">সবাইকে Paid করুন</button>' +
+            '<button class="btn btn-sm btn-danger" data-action="month-delete" data-month="'+m.key+'">মাস মুছুন</button>' +
+          '</div>' + payRows + '</div>') : '') +
+      '</div>';
+    }
+    function renderExpenseRow(e){
+      var rid = 'exp-'+e.id;
+      var open = expandedRows.has(rid);
+      return '' +
+      '<div class="row">' +
+        '<div class="row-main" data-action="row-toggle" data-id="'+rid+'" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'" aria-controls="panel-'+rid+'">' +
+          '<div class="row-roll date-chip">'+escapeHTML(e.date)+'</div>' +
+          '<div class="row-name">'+escapeHTML(e.title)+' <span class="muted-inline">'+escapeHTML(e.category||'')+'</span></div>' +
+          '<span class="expense-amount">-'+fmt(e.amount)+'</span>' +
+          '<span class="chevron '+(open?'open':'')+'" aria-hidden="true">⌄</span>' +
+        '</div>' +
+        (open ? ('<div class="row-detail" id="panel-'+rid+'">' +
+          (e.note ? ('<div class="field-line"><span class="field-label">নোট</span><span class="field-value">'+escapeHTML(e.note)+'</span></div>') : '') +
+          '<div class="row-actions">' +
+            '<button class="btn btn-sm" data-action="expense-edit" data-id="'+e.id+'">সম্পাদনা</button>' +
+            '<button class="btn btn-sm btn-danger" data-action="expense-delete" data-id="'+e.id+'">মুছুন</button>' +
+          '</div></div>') : '') +
+      '</div>';
+    }
+    function renderFund(){
+      var months = state.fund.months.slice().sort(function(a,b){ return b.key.localeCompare(a.key); });
+      var monthRows = months.map(renderMonthRow).join('') || '<div class="empty-state">🗓️ এখনো কোনো মাস যোগ করা হয়নি।<br><br><button class="btn btn-primary" data-action="fund-add-month">+ চলতি মাস যোগ করুন</button></div>';
+      var expenses = state.fund.expenses.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+      var expenseRows = expenses.map(renderExpenseRow).join('') || '<div class="empty-state">🧾 এখনো কোনো খরচ যোগ করা হয়নি।</div>';
+      return '' +
+      '<div class="page-header">' +
+        '<div><div class="page-title">ব্যাচ ফান্ড</div><div class="page-meta">মাসিক কালেকশন ও খরচের হিসাব</div></div>' +
+        '<div class="toolbar-actions"><button class="btn btn-ghost" data-action="open-export" data-scope="fund">এক্সপোর্ট</button></div>' +
+      '</div>' +
+      '<div class="cards-grid">' +
+        '<div class="stat-card credit"><div class="stat-card-label">মোট কালেকশন</div><div class="stat-card-value">'+fmt(totalCollected())+'</div></div>' +
+        '<div class="stat-card debit"><div class="stat-card-label">মোট খরচ</div><div class="stat-card-value">'+fmt(totalExpense())+'</div></div>' +
+        '<div class="stat-card balance"><div class="stat-card-label">বর্তমান ব্যালেন্স</div><div class="stat-card-value">'+fmt(balanceAmt())+'</div></div>' +
+      '</div>' +
+      renderTrendStrip() +
+      '<div class="section-block">' +
+        '<div class="section-block-header"><div class="section-block-title">সবচেয়ে বেশি বকেয়া</div></div>' +
+        renderTopDuePanel() +
+      '</div>' +
+      '<div class="section-block">' +
+        '<div class="section-block-header"><div class="section-block-title">মাসিক কালেকশন</div><button class="btn btn-sm btn-primary" data-action="fund-add-month">+ নতুন মাস</button></div>' +
+        '<div class="month-list">'+monthRows+'</div>' +
+      '</div>' +
+      '<div class="section-block">' +
+        '<div class="section-block-header"><div class="section-block-title">খরচের হিসাব</div><button class="btn btn-sm btn-primary" data-action="expense-add">+ নতুন খরচ</button></div>' +
+        '<div class="expense-list">'+expenseRows+'</div>' +
+      '</div>';
+    }
+
+    /* ================= Render: Custom sections ================= */
+    function renderSectionEntryRow(sec, en){
+      var open = expandedRows.has(en.id);
+      var titleField = sec.fields[0];
+      var title = titleField ? en.values[titleField.key] : '';
+      var fieldsHTML = sec.fields.map(function(f){
+        var val = en.values[f.key];
+        var display;
+        if(f.type==='checkbox') display = val ? '✔️' : '—';
+        else if(f.type==='link') display = val ? ('<a href="'+escapeAttr(val)+'" target="_blank" rel="noopener">লিংক দেখুন ↗</a>') : '<span class="muted">—</span>';
+        else display = (val!==undefined && val!==null && val!=='') ? escapeHTML(String(val)) : '<span class="muted">—</span>';
+        return '<div class="field-line"><span class="field-label">'+escapeHTML(f.label)+'</span><span class="field-value">'+display+'</span></div>';
+      }).join('');
+      return '' +
+      '<div class="row">' +
+        '<div class="row-main" data-action="row-toggle" data-id="'+en.id+'" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'" aria-controls="panel-'+en.id+'">' +
+          '<div class="row-name">'+escapeHTML(String(title||'এন্ট্রি'))+'</div>' +
+          '<span class="chevron '+(open?'open':'')+'" aria-hidden="true">⌄</span>' +
+        '</div>' +
+        (open ? ('<div class="row-detail" id="panel-'+en.id+'">'+fieldsHTML+
+          '<div class="row-actions">' +
+            '<button class="btn btn-sm" data-action="section-entry-edit" data-section="'+sec.id+'" data-id="'+en.id+'">সম্পাদনা</button>' +
+            '<button class="btn btn-sm btn-danger" data-action="section-entry-delete" data-section="'+sec.id+'" data-id="'+en.id+'">মুছুন</button>' +
+          '</div></div>') : '') +
+      '</div>';
+    }
+    function renderSection(sec){
+      var rows = sec.entries.map(function(en){ return renderSectionEntryRow(sec, en); }).join('') || '<div class="empty-state">📁 এখনো কোনো এন্ট্রি যোগ করা হয়নি।</div>';
+      return '' +
+      '<div class="page-header">' +
+        '<div><div class="page-title">'+escapeHTML(sec.title)+'</div><div class="page-meta">'+sec.entries.length+' টি এন্ট্রি</div></div>' +
+        '<div class="toolbar-actions">' +
+          '<button class="btn btn-ghost" data-action="open-export" data-scope="'+sec.id+'">এক্সপোর্ট</button>' +
+          '<button class="btn btn-primary" data-action="section-entry-add" data-section="'+sec.id+'">+ নতুন এন্ট্রি</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="list">'+rows+'</div>';
+    }
+
+    /* ================= Main render ================= */
+    function renderOnboardingBanner(){
+      return '<div class="onboard-banner">' +
+        '<div>👋 স্বাগতম! এখানে ব্যাচের সবার তথ্য রাখতে পারবে, মাসিক ফান্ড ট্র্যাক করতে পারবে, আর উপরের ⚙ থেকে নিজের মতো সব কাস্টমাইজ করতে পারবে।</div>' +
+        '<button type="button" class="btn btn-sm" data-action="dismiss-onboarding">বুঝেছি</button>' +
+      '</div>';
+    }
+    function renderMainHTML(){
+      var banner = state.ui.onboarded ? '' : renderOnboardingBanner();
+      var tab = state.ui.activeTab;
+      var body;
+      if(tab==='home') body = renderHome();
+      else if(tab==='fund') body = renderFund();
+      else if(state.sections[tab]) body = renderSection(state.sections[tab]);
+      else { state.ui.activeTab='home'; body = renderHome(); }
+      return banner + body;
+    }
+    function render(){
+      saveState();
+      var active = document.activeElement;
+      var restore = null;
+      var mainEl = document.getElementById('main');
+      if(active && active.id && mainEl && mainEl.contains(active)){
+        restore = { id:active.id, start:active.selectionStart, end:active.selectionEnd };
+      }
+      document.getElementById('nav').innerHTML = renderNav();
+      mainEl.innerHTML = renderMainHTML();
+      if(restore){
+        var el = document.getElementById(restore.id);
+        if(el){
+          el.focus();
+          if(typeof restore.start==='number' && el.setSelectionRange){
+            try{ el.setSelectionRange(restore.start, restore.end); }catch(e){}
+          }
+        }
+      }
+    }
+
+    /* ================= Modal system ================= */
+    function trapFocusHandler(e){
+      if(e.key!=='Tab') return;
+      var root = document.getElementById('modalRoot');
+      var focusables = root.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if(!focusables.length) return;
+      var list = Array.prototype.slice.call(focusables);
+      var first = list[0], last = list[list.length-1];
+      if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+    }
+    function openModal(html){
+      lastFocusedBeforeModal = document.activeElement;
+      var root = document.getElementById('modalRoot');
+      root.innerHTML = '<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" data-action="modal-stop" role="dialog" aria-modal="true" aria-labelledby="modalTitleId" tabindex="-1">'+html+'</div></div>';
+      root.classList.add('open');
+      var form = root.querySelector('form');
+      if(form){ form.addEventListener('submit', function(e){ e.preventDefault(); if(form._onSubmit) form._onSubmit(new FormData(form)); }); }
+      var modalEl = root.querySelector('.modal');
+      modalEl.addEventListener('keydown', trapFocusHandler);
+      setTimeout(function(){ modalEl.focus(); }, 10);
+    }
+    function closeModal(){
+      var root = document.getElementById('modalRoot');
+      root.classList.remove('open');
+      root.innerHTML='';
+      if(lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus==='function'){
+        try{ lastFocusedBeforeModal.focus(); }catch(e){}
+      }
+      lastFocusedBeforeModal = null;
+    }
+    function confirmDialog(message, cb){
+      pendingConfirm = cb;
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">নিশ্চিত করুন</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<div class="modal-body"><p>'+escapeHTML(message)+'</p></div>' +
+        '<div class="modal-footer">' +
+          '<button class="btn btn-ghost" data-action="confirm-no">বাতিল</button>' +
+          '<button class="btn btn-danger" data-action="confirm-yes">হ্যাঁ, মুছুন</button>' +
+        '</div>'
+      );
+    }
+
+    /* ---- generic field input renderer ---- */
+    function renderFieldInput(f, value){
+      var inputId = 'field_'+f.key;
+      if(f.type==='select'){
+        var opts = (f.options||[]).map(function(o){ return '<option value="'+escapeAttr(o)+'" '+(value===o?'selected':'')+'>'+escapeHTML(o)+'</option>'; }).join('');
+        return '<div class="form-group"><label class="form-label" for="'+inputId+'">'+escapeHTML(f.label)+'</label><select class="form-select" id="'+inputId+'" name="'+f.key+'">'+opts+'</select></div>';
+      }
+      if(f.type==='checkbox'){
+        return '<div class="form-group checkbox-group"><label class="form-check"><input type="checkbox" id="'+inputId+'" name="'+f.key+'" '+(value?'checked':'')+'> '+escapeHTML(f.label)+'</label></div>';
+      }
+      var inputType = f.type==='number' ? 'number' : (f.type==='date' ? 'date' : (f.type==='link' ? 'url' : 'text'));
+      return '<div class="form-group"><label class="form-label" for="'+inputId+'">'+escapeHTML(f.label)+'</label><input class="form-input" id="'+inputId+'" type="'+inputType+'" name="'+f.key+'" value="'+escapeAttr(value||'')+'"></div>';
+    }
+
+    function openStudentForm(student){
+      var isEdit = !!student;
+      var s = student || {roll:'', name:'', fields:{}};
+      var dynamicFields = state.studentSchema.map(function(f){ return renderFieldInput(f, s.fields[f.key]); }).join('');
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">'+(isEdit?'শিক্ষার্থী সম্পাদনা':'নতুন শিক্ষার্থী')+'</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<form id="studentForm">' +
+          '<div class="modal-body">' +
+            '<div class="form-row">' +
+              '<div class="form-group"><label class="form-label" for="studentRollInput">Roll</label><input class="form-input" id="studentRollInput" name="roll" type="text" required value="'+escapeAttr(String(s.roll))+'"></div>' +
+              '<div class="form-group flex2"><label class="form-label" for="studentNameInput">নাম</label><input class="form-input" id="studentNameInput" name="name" type="text" required value="'+escapeAttr(s.name)+'"></div>' +
+            '</div>' +
+            dynamicFields +
+            '<p class="form-hint">আরও ফিল্ড যোগ করতে চাইলে ⚙ কাস্টমাইজ থেকে "শিক্ষার্থী ফিল্ড" ট্যাবে যাও।</p>' +
+          '</div>' +
+          '<div class="modal-footer">' +
+            '<button type="button" class="btn btn-ghost" data-action="modal-close">বাতিল</button>' +
+            '<button type="submit" class="btn btn-primary">সংরক্ষণ করুন</button>' +
+          '</div>' +
+        '</form>'
+      );
+      document.getElementById('studentForm')._onSubmit = function(fd){
+        var data = { roll: fd.get('roll'), name: fd.get('name') };
+        state.studentSchema.forEach(function(f){ data[f.key] = f.type==='checkbox' ? (fd.get(f.key)==='on') : fd.get(f.key); });
+        if(isEdit) updateStudent(s.id, data); else addStudent(data);
+        closeModal();
+      };
+    }
+
+    function openExpenseForm(exp){
+      var isEdit = !!exp;
+      var e = exp || { date:new Date().toISOString().slice(0,10), title:'', category:'', amount:'', note:'' };
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">'+(isEdit?'খরচ সম্পাদনা':'নতুন খরচ')+'</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<form id="expenseForm">' +
+          '<div class="modal-body">' +
+            '<div class="form-row">' +
+              '<div class="form-group"><label class="form-label" for="expDateInput">তারিখ</label><input class="form-input" id="expDateInput" type="date" name="date" required value="'+escapeAttr(e.date)+'"></div>' +
+              '<div class="form-group"><label class="form-label" for="expAmountInput">পরিমাণ</label><input class="form-input" id="expAmountInput" type="number" min="0" name="amount" required value="'+escapeAttr(String(e.amount))+'"></div>' +
+            '</div>' +
+            '<div class="form-group"><label class="form-label" for="expTitleInput">শিরোনাম</label><input class="form-input" id="expTitleInput" type="text" name="title" required value="'+escapeAttr(e.title)+'"></div>' +
+            '<div class="form-group"><label class="form-label" for="expCategoryInput">ক্যাটেগরি</label><input class="form-input" id="expCategoryInput" list="catList" type="text" name="category" value="'+escapeAttr(e.category)+'">' +
+              '<datalist id="catList"><option value="ইভেন্ট"><option value="স্টেশনারি"><option value="খাবার"><option value="যাতায়াত"><option value="অন্যান্য"></datalist>' +
+            '</div>' +
+            '<div class="form-group"><label class="form-label" for="expNoteInput">নোট (ঐচ্ছিক)</label><textarea class="form-input" id="expNoteInput" name="note" rows="2">'+escapeHTML(e.note||'')+'</textarea></div>' +
+          '</div>' +
+          '<div class="modal-footer">' +
+            '<button type="button" class="btn btn-ghost" data-action="modal-close">বাতিল</button>' +
+            '<button type="submit" class="btn btn-primary">সংরক্ষণ করুন</button>' +
+          '</div>' +
+        '</form>'
+      );
+      document.getElementById('expenseForm')._onSubmit = function(fd){
+        var data = { date:fd.get('date'), title:fd.get('title'), category:fd.get('category'), amount:fd.get('amount'), note:fd.get('note') };
+        if(isEdit) updateExpense(exp.id, data); else addExpense(data);
+        closeModal();
+      };
+    }
+
+    function openSectionEntryForm(sectionId, entry){
+      var sec = state.sections[sectionId];
+      var isEdit = !!entry;
+      var values = entry ? entry.values : {};
+      var fieldsHTML = sec.fields.map(function(f){ return renderFieldInput(f, values[f.key]); }).join('') || '<p class="form-hint">এই সেকশনে এখনো কোনো ফিল্ড নেই। ⚙ কাস্টমাইজ থেকে "সম্পাদনা" চেপে ফিল্ড যোগ করো।</p>';
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">'+(isEdit?'এন্ট্রি সম্পাদনা':'নতুন এন্ট্রি')+' — '+escapeHTML(sec.title)+'</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<form id="entryForm">' +
+          '<div class="modal-body">'+fieldsHTML+'</div>' +
+          '<div class="modal-footer">' +
+            '<button type="button" class="btn btn-ghost" data-action="modal-close">বাতিল</button>' +
+            '<button type="submit" class="btn btn-primary">সংরক্ষণ করুন</button>' +
+          '</div>' +
+        '</form>'
+      );
+      document.getElementById('entryForm')._onSubmit = function(fd){
+        var vals = {};
+        sec.fields.forEach(function(f){ vals[f.key] = f.type==='checkbox' ? (fd.get(f.key)==='on') : fd.get(f.key); });
+        if(isEdit) updateSectionEntry(sectionId, entry.id, vals); else addSectionEntry(sectionId, vals);
+        closeModal();
+      };
+    }
+
+    function openReminderModal(s, due){
+      var msg = buildReminderMessage(s, due);
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">রিমাইন্ডার মেসেজ</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<div class="modal-body">' +
+          '<p class="form-hint">নিচের মেসেজ কপি করে '+escapeHTML(s.name)+'-কে হোয়াটসঅ্যাপ/মেসেঞ্জারে পাঠিয়ে দাও।</p>' +
+          '<textarea class="form-input" id="reminderText" rows="4" readonly>'+escapeHTML(msg)+'</textarea>' +
+          '<button type="button" class="btn btn-primary btn-block" data-action="reminder-copy">কপি করো</button>' +
+          '<p class="form-hint" id="reminderCopyStatus" role="status" aria-live="polite">&nbsp;</p>' +
+        '</div>' +
+        '<div class="modal-footer"><button type="button" class="btn btn-ghost" data-action="modal-close">বন্ধ করো</button></div>'
+      );
+      var ta = document.getElementById('reminderText');
+      setTimeout(function(){ if(ta){ ta.focus(); ta.select(); } }, 60);
+    }
+
+    /* ---- Section builder ---- */
+    function openSectionBuilder(existingSection){
+      builderEditingSection = existingSection || null;
+      builderFields = existingSection ? existingSection.fields.map(function(f){ return Object.assign({}, f); }) : [];
+      builderTitle = existingSection ? existingSection.title : '';
+      renderSectionBuilderModal();
+    }
+    function renderSectionBuilderModal(){
+      var isEdit = !!builderEditingSection;
+      var fieldRows = builderFields.map(function(f, i){
+        var row = '' +
+        '<div class="builder-field-row">' +
+          '<input type="text" placeholder="ফিল্ডের নাম" value="'+escapeAttr(f.label)+'" data-bidx="'+i+'" data-bprop="label" aria-label="ফিল্ডের নাম">' +
+          '<select data-bidx="'+i+'" data-bprop="type" aria-label="ফিল্ডের ধরন">' +
+            ['text','number','date','link','checkbox','select'].map(function(ty){
+              return '<option value="'+ty+'" '+(f.type===ty?'selected':'')+'>'+fieldTypeLabel(ty)+'</option>';
+            }).join('') +
+          '</select>' +
+          '<button type="button" class="icon-btn-sm danger" data-action="builder-remove-field" data-idx="'+i+'" aria-label="ফিল্ড মুছুন">✕</button>' +
+        '</div>';
+        if(f.type==='select'){
+          row += '<input type="text" style="margin:-4px 0 8px;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 9px;" placeholder="অপশন (কমা দিয়ে আলাদা করুন)" value="'+escapeAttr((f.options||[]).join(', '))+'" data-bidx="'+i+'" data-bprop="options" aria-label="অপশনসমূহ">';
+        }
+        return row;
+      }).join('') || '<p class="form-hint">এখনো কোনো ফিল্ড যোগ করা হয়নি।</p>';
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">'+(isEdit?'সেকশন সম্পাদনা':'নতুন সেকশন')+'</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<form id="builderForm">' +
+          '<div class="modal-body">' +
+            '<div class="form-group"><label class="form-label" for="builderTitleInput">সেকশনের নাম</label><input class="form-input" id="builderTitleInput" type="text" required value="'+escapeAttr(builderTitle)+'"></div>' +
+            '<label class="form-label" id="builderFieldsLabel">ফিল্ডসমূহ</label>' +
+            '<div id="builderFieldsWrap" role="group" aria-labelledby="builderFieldsLabel">'+fieldRows+'</div>' +
+            '<button type="button" class="btn btn-sm" data-action="builder-add-field">+ ফিল্ড যোগ করুন</button>' +
+          '</div>' +
+          '<div class="modal-footer">' +
+            '<button type="button" class="btn btn-ghost" data-action="modal-close">বাতিল</button>' +
+            '<button type="submit" class="btn btn-primary">সংরক্ষণ করুন</button>' +
+          '</div>' +
+        '</form>'
+      );
+      var titleInp = document.getElementById('builderTitleInput');
+      titleInp.addEventListener('input', function(e){ builderTitle = e.target.value; });
+      document.querySelectorAll('#builderFieldsWrap [data-bidx]').forEach(function(inp){
+        inp.addEventListener('input', function(e){
+          var idx = Number(e.target.dataset.bidx), prop = e.target.dataset.bprop;
+          if(prop==='options') builderFields[idx].options = e.target.value.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+          else builderFields[idx][prop] = e.target.value;
+        });
+        inp.addEventListener('change', function(e){ if(e.target.dataset.bprop==='type') renderSectionBuilderModal(); });
+      });
+      document.getElementById('builderForm')._onSubmit = function(){
+        var title = builderTitle.trim() || 'নতুন সেকশন';
+        var fields = builderFields.filter(function(f){ return f.label && f.label.trim(); }).map(function(f){
+          return { key: f.key || slugify(f.label), label: f.label.trim(), type: f.type||'text', options: f.options };
+        });
+        if(isEdit){
+          builderEditingSection.title = title;
+          builderEditingSection.fields = fields;
+          var navItem = state.nav.find(function(n){ return n.id===builderEditingSection.id; });
+          if(navItem) navItem.label = title;
+          render();
+        } else { addSection(title, fields); }
+        closeModal();
+      };
+    }
+
+    /* ---- Options editor (drag & drop, with keyboard fallback) ---- */
+    function openOptionsEditor(title, currentOptions, onSave){
+      optionsEditorOriginalTextById = {};
+      optionsEditorList = currentOptions.map(function(o){ var id=uid(); optionsEditorOriginalTextById[id]=o; return {id:id, text:o}; });
+      optionsEditorOnSave = onSave;
+      optionsEditorTitle = title;
+      renderOptionsEditorModal();
+    }
+    function renderOptionsEditorModal(){
+      var itemsHTML = optionsEditorList.map(function(o,i){
+        return '<div class="option-item" data-opt-idx="'+i+'">' +
+          '<span class="drag-handle" aria-hidden="true">⠿</span>' +
+          '<input type="text" class="option-input" data-opt-idx="'+i+'" value="'+escapeAttr(o.text)+'" aria-label="অপশন '+(i+1)+'">' +
+          '<button type="button" class="icon-btn-sm" data-action="option-moveup" data-idx="'+i+'" aria-label="উপরে সরাও" '+(i===0?'disabled':'')+'>↑</button>' +
+          '<button type="button" class="icon-btn-sm" data-action="option-movedown" data-idx="'+i+'" aria-label="নিচে সরাও" '+(i===optionsEditorList.length-1?'disabled':'')+'>↓</button>' +
+          '<button type="button" class="icon-btn-sm danger" data-action="option-remove" data-idx="'+i+'" aria-label="মুছুন">✕</button>' +
+        '</div>';
+      }).join('') || '<p class="form-hint">কোনো অপশন নেই।</p>';
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">'+escapeHTML(optionsEditorTitle)+'</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<div class="modal-body">' +
+          '<div id="optionsListWrap" class="options-list">'+itemsHTML+'</div>' +
+          '<button type="button" class="btn btn-sm" data-action="option-add">+ অপশন যোগ করুন</button>' +
+          '<p class="form-hint">⠿ ধরে ড্র্যাগ করে, অথবা ↑↓ বাটন দিয়ে ক্রম পরিবর্তন করতে পারবে।</p>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="btn btn-ghost" data-action="modal-close">বাতিল</button>' +
+          '<button type="button" class="btn btn-primary" data-action="option-save">সংরক্ষণ করুন</button>' +
+        '</div>'
+      );
+      var wrap = document.getElementById('optionsListWrap');
+      if(wrap && window.Sortable){
+        new Sortable(wrap, {
+          handle:'.drag-handle', animation:150,
+          onEnd:function(evt){
+            if(evt.oldIndex===evt.newIndex) return;
+            var moved = optionsEditorList.splice(evt.oldIndex,1)[0];
+            optionsEditorList.splice(evt.newIndex,0,moved);
+            renderOptionsEditorModal();
+          }
+        });
+      }
+      wrap.querySelectorAll('.option-input').forEach(function(inp){
+        inp.addEventListener('input', function(e){ optionsEditorList[Number(e.target.dataset.optIdx)].text = e.target.value; });
+      });
+    }
+
+    /* ---- Settings modal ---- */
+    function openSettings(){ renderSettingsModal(); }
+    function renderSettingsNavTab(){
+      var rows = state.nav.map(function(n, i){
+        return '' +
+        '<div class="settings-row">' +
+          '<label class="form-label" style="display:none" for="navlabel-'+n.id+'">নেভিগেশন লেবেল</label>' +
+          '<input class="settings-nav-input" id="navlabel-'+n.id+'" type="text" data-action="nav-relabel" data-id="'+n.id+'" value="'+escapeAttr(n.label)+'">' +
+          '<div class="settings-row-actions">' +
+            '<button class="icon-btn-sm" data-action="nav-moveup" data-id="'+n.id+'" '+(i===0?'disabled':'')+' aria-label="উপরে সরাও">↑</button>' +
+            '<button class="icon-btn-sm" data-action="nav-movedown" data-id="'+n.id+'" '+(i===state.nav.length-1?'disabled':'')+' aria-label="নিচে সরাও">↓</button>' +
+            (n.locked ? '' : ('<button class="icon-btn-sm" data-action="nav-edit-section" data-id="'+n.id+'" aria-label="ফিল্ড সম্পাদনা">🛠</button>' +
+              '<button class="icon-btn-sm danger" data-action="nav-delete" data-id="'+n.id+'" aria-label="সেকশন মুছুন">🗑</button>')) +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return rows + '<button class="btn btn-primary btn-block" data-action="nav-add-section">+ নতুন সেকশন যোগ করুন</button>';
+    }
+    function renderSettingsFieldsTab(){
+      var rows = state.studentSchema.map(function(f){
+        return '' +
+        '<div class="settings-row">' +
+          '<div class="settings-field-info"><strong>'+escapeHTML(f.label)+'</strong> <span class="muted-inline">'+fieldTypeLabel(f.type)+'</span></div>' +
+          '<div class="settings-row-actions">' +
+            (f.type==='select' ? '<button class="icon-btn-sm" data-action="field-edit-options" data-key="'+f.key+'" aria-label="অপশন সম্পাদনা">⠿</button>' : '') +
+            (f.core ? '<span class="badge-core">Core</span>' : ('<button class="icon-btn-sm danger" data-action="field-delete-student" data-key="'+f.key+'" aria-label="ফিল্ড মুছুন">🗑</button>')) +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return rows +
+      '<div class="inline-field-add">' +
+        '<label class="form-label" style="display:none" for="newStudentFieldLabel">নতুন ফিল্ডের নাম</label>' +
+        '<input class="form-input" id="newStudentFieldLabel" type="text" placeholder="নতুন ফিল্ডের নাম">' +
+        '<label class="form-label" style="display:none" for="newStudentFieldType">ফিল্ডের ধরন</label>' +
+        '<select class="form-select" id="newStudentFieldType" data-action="field-type-toggle">' +
+          ['text','number','date','link','checkbox','select'].map(function(ty){ return '<option value="'+ty+'">'+fieldTypeLabel(ty)+'</option>'; }).join('') +
+        '</select>' +
+        '<input class="form-input" id="newStudentFieldOptions" type="text" placeholder="অপশন (কমা দিয়ে)" aria-label="অপশন কমা দিয়ে আলাদা করে লেখো" style="display:none;flex:1 1 100%;">' +
+        '<button class="btn btn-primary" data-action="field-add-student">যোগ করুন</button>' +
+      '</div>';
+    }
+    function renderSettingsFundTab(){
+      return '' +
+      '<div class="form-group"><label class="form-label" for="settingsBatchName">ব্যাচের নাম</label><input class="form-input" id="settingsBatchName" data-settings-field="batchName" type="text" value="'+escapeAttr(state.meta.batchName)+'"></div>' +
+      '<div class="form-group"><label class="form-label" for="settingsSession">সেশন</label><input class="form-input" id="settingsSession" data-settings-field="session" type="text" value="'+escapeAttr(state.meta.session)+'"></div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label class="form-label" for="settingsCurrency">কারেন্সি সিম্বল</label><input class="form-input" id="settingsCurrency" data-settings-field="currency" type="text" value="'+escapeAttr(state.meta.currency)+'"></div>' +
+        '<div class="form-group"><label class="form-label" for="settingsMonthlyAmount">ডিফল্ট মাসিক পরিমাণ</label><input class="form-input" id="settingsMonthlyAmount" data-settings-field="monthlyAmount" type="number" min="0" value="'+state.fund.monthlyAmount+'"></div>' +
+      '</div>' +
+      '<p class="form-hint">নতুন মাস যোগ করার সময় এই ডিফল্ট পরিমাণ ব্যবহার হবে। আগের মাসগুলোতে প্রভাব পড়বে না।</p>';
+    }
+    function renderSettingsDataTab(){
+      return '' +
+      '<p>মোট '+state.students.length+' জন শিক্ষার্থী, '+state.fund.months.length+' টি মাস, '+state.fund.expenses.length+' টি খরচের এন্ট্রি, '+Object.keys(state.sections).length+' টি কাস্টম সেকশন সংরক্ষিত আছে।</p>' +
+      '<button class="btn btn-ghost btn-block" data-action="open-export" data-scope="all">সব ডেটা এক্সপোর্ট করো</button>' +
+      '<div class="danger-zone">' +
+        '<div class="danger-zone-title">বিপজ্জনক অঞ্চল</div>' +
+        '<button class="btn btn-danger btn-block" data-action="data-reset">সব ডেটা রিসেট করো</button>' +
+      '</div>';
+    }
+    function renderSettingsModal(){
+      var tabsBar = '' +
+      '<div class="settings-tabs" role="tablist">' +
+        '<button class="stab '+(settingsTab==='nav'?'active':'')+'" data-action="settings-tab" data-tab="nav" role="tab" aria-selected="'+(settingsTab==='nav')+'">নেভিগেশন</button>' +
+        '<button class="stab '+(settingsTab==='studentFields'?'active':'')+'" data-action="settings-tab" data-tab="studentFields" role="tab" aria-selected="'+(settingsTab==='studentFields')+'">শিক্ষার্থী ফিল্ড</button>' +
+        '<button class="stab '+(settingsTab==='fund'?'active':'')+'" data-action="settings-tab" data-tab="fund" role="tab" aria-selected="'+(settingsTab==='fund')+'">ফান্ড সেটিংস</button>' +
+        '<button class="stab '+(settingsTab==='data'?'active':'')+'" data-action="settings-tab" data-tab="data" role="tab" aria-selected="'+(settingsTab==='data')+'">ডেটা</button>' +
+      '</div>';
+      var body = settingsTab==='nav' ? renderSettingsNavTab()
+        : settingsTab==='studentFields' ? renderSettingsFieldsTab()
+        : settingsTab==='fund' ? renderSettingsFundTab()
+        : renderSettingsDataTab();
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">কাস্টমাইজ</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        tabsBar +
+        '<div class="modal-body settings-body" role="tabpanel">'+body+'</div>'
+      );
+      var typeSel = document.getElementById('newStudentFieldType');
+      if(typeSel){
+        typeSel.addEventListener('change', function(){
+          document.getElementById('newStudentFieldOptions').style.display = typeSel.value==='select' ? 'block' : 'none';
+        });
+      }
+    }
+
+    /* ================= Export ================= */
+    function exportFilename(scope, ext){
+      var dateStr = new Date().toISOString().slice(0,10);
+      var scopeName = scope==='students' ? 'students' : scope==='fund' ? 'batch-fund' : scope==='all' ? 'all-data' : (state.sections[scope] ? slugForFile(state.sections[scope].title) : scope);
+      return 'cse07-'+scopeName+'-'+dateStr+'.'+ext;
+    }
+    function csvEscape(v){
+      var s = (v===undefined||v===null) ? '' : String(v);
+      if(/[",\n]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+      return s;
+    }
+    function buildCSV(scope){
+      var rows = [];
+      if(scope==='students'){
+        rows.push(['Roll','Name'].concat(state.studentSchema.map(function(f){ return f.label; })));
+        state.students.forEach(function(s){ rows.push([s.roll, s.name].concat(state.studentSchema.map(function(f){ return s.fields[f.key]; }))); });
+      } else if(scope==='fund'){
+        rows.push(['মোট কালেকশন', totalCollected()]); rows.push(['মোট খরচ', totalExpense()]); rows.push(['ব্যালেন্স', balanceAmt()]); rows.push([]);
+        rows.push(['মাস','কালেকশন','প্রত্যাশিত']);
+        state.fund.months.forEach(function(m){ rows.push([monthLabel(m.key), monthCollected(m), monthExpected(m)]); });
+        rows.push([]); rows.push(['তারিখ','শিরোনাম','ক্যাটেগরি','পরিমাণ']);
+        state.fund.expenses.forEach(function(e){ rows.push([e.date, e.title, e.category, e.amount]); });
+      } else if(state.sections[scope]){
+        var sec = state.sections[scope];
+        rows.push(sec.fields.map(function(f){ return f.label; }));
+        sec.entries.forEach(function(en){ rows.push(sec.fields.map(function(f){ return en.values[f.key]; })); });
+      } else if(scope==='all'){
+        rows.push(['-- শিক্ষার্থীদের তালিকা --']);
+        rows.push(['Roll','Name'].concat(state.studentSchema.map(function(f){ return f.label; })));
+        state.students.forEach(function(s){ rows.push([s.roll,s.name].concat(state.studentSchema.map(function(f){ return s.fields[f.key]; }))); });
+        rows.push([]); rows.push(['-- ব্যাচ ফান্ড --']); rows.push(['মাস','কালেকশন','প্রত্যাশিত']);
+        state.fund.months.forEach(function(m){ rows.push([monthLabel(m.key), monthCollected(m), monthExpected(m)]); });
+        rows.push([]); rows.push(['তারিখ','শিরোনাম','ক্যাটেগরি','পরিমাণ']);
+        state.fund.expenses.forEach(function(e){ rows.push([e.date,e.title,e.category,e.amount]); });
+        Object.keys(state.sections).forEach(function(id){
+          var sec = state.sections[id];
+          rows.push([]); rows.push(['-- '+sec.title+' --']);
+          rows.push(sec.fields.map(function(f){ return f.label; }));
+          sec.entries.forEach(function(en){ rows.push(sec.fields.map(function(f){ return en.values[f.key]; })); });
+        });
+      }
+      return rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
+    }
+    function buildExportData(scope){
+      if(scope==='students'){
+        return { batch: state.meta.batchName, session: state.meta.session, students: state.students.map(function(s){
+          var o = { roll:s.roll, name:s.name }; state.studentSchema.forEach(function(f){ o[f.label]=s.fields[f.key]; }); return o;
+        }) };
+      }
+      if(scope==='fund'){
+        return {
+          batch: state.meta.batchName, currency: state.meta.currency,
+          totalCollected: totalCollected(), totalExpense: totalExpense(), balance: balanceAmt(),
+          months: state.fund.months.map(function(m){
+            return { month:m.key, amount:m.amount, collected:monthCollected(m), payments: state.students.map(function(s){
+              var p = getPayment(m,s.id); return { roll:s.roll, name:s.name, paid:p.paid, amount:p.amount };
+            }) };
+          }),
+          expenses: state.fund.expenses
+        };
+      }
+      if(scope==='all'){ return { meta: state.meta, students: state.students, fund: state.fund, sections: state.sections, exportedAt: new Date().toISOString() }; }
+      if(state.sections[scope]){
+        var sec = state.sections[scope];
+        return { section: sec.title, entries: sec.entries.map(function(e){ var o = {}; sec.fields.forEach(function(f){ o[f.label]=e.values[f.key]; }); return o; }) };
+      }
+      return {};
+    }
+    function buildExportSheet(scope){
+      var wrap = document.createElement('div');
+      wrap.className = 'export-sheet';
+      wrap.style.position='fixed'; wrap.style.top='-10000px'; wrap.style.left='0'; wrap.style.width='800px'; wrap.style.zIndex='-1';
+      var inner = '<div class="export-head"><div class="export-title">'+escapeHTML(state.meta.batchName)+'</div><div class="export-sub">'+escapeHTML(state.meta.session)+' · '+new Date().toLocaleDateString('en-GB')+'</div></div>';
+      if(scope==='students' || scope==='all'){
+        inner += '<h3>শিক্ষার্থীদের তালিকা</h3><table class="export-table"><thead><tr><th>Roll</th><th>নাম</th>'+state.studentSchema.map(function(f){ return '<th>'+escapeHTML(f.label)+'</th>'; }).join('')+'</tr></thead><tbody>';
+        inner += state.students.map(function(s){
+          return '<tr><td>'+escapeHTML(String(s.roll))+'</td><td>'+escapeHTML(s.name)+'</td>'+state.studentSchema.map(function(f){ return '<td>'+escapeHTML(String(s.fields[f.key]||'—'))+'</td>'; }).join('')+'</tr>';
+        }).join('');
+        inner += '</tbody></table>';
+      }
+      if(scope==='fund' || scope==='all'){
+        inner += '<h3>ব্যাচ ফান্ড সামারি</h3><table class="export-table"><tbody>' +
+          '<tr><td>মোট কালেকশন</td><td>'+fmt(totalCollected())+'</td></tr>' +
+          '<tr><td>মোট খরচ</td><td>'+fmt(totalExpense())+'</td></tr>' +
+          '<tr><td>বর্তমান ব্যালেন্স</td><td>'+fmt(balanceAmt())+'</td></tr>' +
+        '</tbody></table>' +
+        '<h4>মাস অনুযায়ী কালেকশন</h4><table class="export-table"><thead><tr><th>মাস</th><th>কালেকশন</th><th>প্রত্যাশিত</th></tr></thead><tbody>' +
+        (state.fund.months.map(function(m){ return '<tr><td>'+monthLabel(m.key)+'</td><td>'+fmt(monthCollected(m))+'</td><td>'+fmt(monthExpected(m))+'</td></tr>'; }).join('') || '<tr><td colspan="3">কোনো মাস নেই</td></tr>') +
+        '</tbody></table>' +
+        '<h4>খরচের তালিকা</h4><table class="export-table"><thead><tr><th>তারিখ</th><th>শিরোনাম</th><th>ক্যাটেগরি</th><th>পরিমাণ</th></tr></thead><tbody>' +
+        (state.fund.expenses.map(function(e){ return '<tr><td>'+escapeHTML(e.date)+'</td><td>'+escapeHTML(e.title)+'</td><td>'+escapeHTML(e.category||'')+'</td><td>'+fmt(e.amount)+'</td></tr>'; }).join('') || '<tr><td colspan="4">কোনো খরচ নেই</td></tr>') +
+        '</tbody></table>';
+      }
+      if(state.sections[scope]){
+        var sec = state.sections[scope];
+        inner += '<h3>'+escapeHTML(sec.title)+'</h3><table class="export-table"><thead><tr>'+sec.fields.map(function(f){ return '<th>'+escapeHTML(f.label)+'</th>'; }).join('')+'</tr></thead><tbody>';
+        inner += sec.entries.map(function(en){ return '<tr>'+sec.fields.map(function(f){ var v=en.values[f.key]; return '<td>'+escapeHTML(v===undefined||v===null||v===''?'—':String(v))+'</td>'; }).join('')+'</tr>'; }).join('') || '<tr><td>কোনো এন্ট্রি নেই</td></tr>';
+        inner += '</tbody></table>';
+      }
+      if(scope==='all'){
+        Object.keys(state.sections).forEach(function(id){
+          var sec = state.sections[id];
+          inner += '<h3>'+escapeHTML(sec.title)+'</h3><table class="export-table"><thead><tr>'+sec.fields.map(function(f){ return '<th>'+escapeHTML(f.label)+'</th>'; }).join('')+'</tr></thead><tbody>';
+          inner += sec.entries.map(function(en){ return '<tr>'+sec.fields.map(function(f){ var v=en.values[f.key]; return '<td>'+escapeHTML(v===undefined||v===null||v===''?'—':String(v))+'</td>'; }).join('')+'</tr>'; }).join('') || '<tr><td>কোনো এন্ট্রি নেই</td></tr>';
+          inner += '</tbody></table>';
+        });
+      }
+      wrap.innerHTML = inner;
+      return wrap;
+    }
+    async function getDownloads(){
+      if(_downloads!==undefined) return _downloads;
+      try{ _downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; }
+      catch(err){ _downloads = null; }
+      return _downloads;
+    }
+    function exportErrorMessage(err){
+      var code = err && err.code;
+      if(code==='rate_limited') return 'একটু পর আবার চেষ্টা করো';
+      if(code==='too_large') return 'ফাইলটি অনেক বড় হয়ে গেছে, কম ডেটা নিয়ে আবার চেষ্টা করো';
+      if(code==='rejected_extension' || code==='extension_not_enabled') return 'এই ফরম্যাটে এক্সপোর্ট করা যাচ্ছে না এই মুহূর্তে';
+      if(code==='unavailable' || code==='not_granted' || code==='capability_disabled' || code==='capability_removed') return 'এই ভিউতে ফাইল সেভ করা যাচ্ছে না';
+      if(code==='bad_request' || code==='transform_error') return 'এক্সপোর্ট করতে সমস্যা হয়েছে, আবার চেষ্টা করো';
+      return 'এক্সপোর্ট ব্যর্থ হয়েছে, আবার চেষ্টা করো';
+    }
+    async function runExport(scope, format){
+      closeModal();
+      var downloads = await getDownloads();
+      if(!downloads){ toast('এই ভিউতে ফাইল সেভ করা যাচ্ছে না'); return; }
+      if((format==='pdf' || format==='png') && (typeof html2canvas==='undefined' || !window.jspdf)){
+        toast('এক্সপোর্ট লাইব্রেরি লোড হয়নি — ইন্টারনেট চেক করে আবার চেষ্টা করো');
+        return;
+      }
+      toast('এক্সপোর্ট প্রস্তুত হচ্ছে...');
+      try{
+        if(format==='json'){
+          var data = buildExportData(scope);
+          var blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+          await downloads.save({ filename: exportFilename(scope,'json'), data: blob });
+        } else if(format==='csv'){
+          var csvText = buildCSV(scope);
+          var csvBlob = new Blob(['\ufeff'+csvText], {type:'text/csv;charset=utf-8'});
+          await downloads.save({ filename: exportFilename(scope,'csv'), data: csvBlob });
+        } else {
+          var node = buildExportSheet(scope);
+          document.body.appendChild(node);
+          var canvas = await html2canvas(node, {scale:2, backgroundColor:'#FCFBF7'});
+          document.body.removeChild(node);
+          if(format==='png'){
+            var pngBlob = await new Promise(function(res){ canvas.toBlob(res, 'image/png'); });
+            await downloads.save({ filename: exportFilename(scope,'png'), data: pngBlob });
+          } else {
+            var jsPDFCtor = window.jspdf.jsPDF;
+            var pdf = new jsPDFCtor('p','pt','a4');
+            var pageW = pdf.internal.pageSize.getWidth();
+            var pageH = pdf.internal.pageSize.getHeight();
+            var imgW = pageW;
+            var imgH = canvas.height * (imgW/canvas.width);
+            var heightLeft = imgH, position = 0;
+            var imgData = canvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+            heightLeft -= pageH;
+            while(heightLeft > 0){
+              position = heightLeft - imgH;
+              pdf.addPage();
+              pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+              heightLeft -= pageH;
+            }
+            var pdfBlob = pdf.output('blob');
+            await downloads.save({ filename: exportFilename(scope,'pdf'), data: pdfBlob });
+          }
+        }
+        toast('এক্সপোর্ট সম্পন্ন হয়েছে');
+      } catch(err){
+        if(err && err.code==='declined'){ /* user cancelled, stay silent */ }
+        else { toast(exportErrorMessage(err)); }
+      }
+    }
+    function openExportModal(scope){
+      var scopeOptions = [
+        {key:'students', label:'শিক্ষার্থীদের তালিকা'},
+        {key:'fund', label:'ব্যাচ ফান্ড'}
+      ].concat(Object.keys(state.sections).map(function(id){ return {key:id, label:state.sections[id].title}; })).concat([{key:'all', label:'সব ডেটা'}]);
+      var optsHTML = scopeOptions.map(function(o){ return '<option value="'+o.key+'" '+(o.key===scope?'selected':'')+'>'+escapeHTML(o.label)+'</option>'; }).join('');
+      openModal(
+        '<div class="modal-header"><div class="modal-title" id="modalTitleId">এক্সপোর্ট</div><button class="modal-close" data-action="modal-close" aria-label="বন্ধ করুন">✕</button></div>' +
+        '<div class="modal-body">' +
+          '<div class="form-group"><label class="form-label" for="exportScopeSelect">কী এক্সপোর্ট করবে</label><select class="form-select" id="exportScopeSelect">'+optsHTML+'</select></div>' +
+          '<div class="form-group"><span class="form-label" id="exportFormatLabel">ফরম্যাট</span><div class="format-choice" role="group" aria-labelledby="exportFormatLabel">' +
+            '<button type="button" class="btn btn-ghost format-btn active" data-format="json">JSON</button>' +
+            '<button type="button" class="btn btn-ghost format-btn" data-format="csv">CSV</button>' +
+            '<button type="button" class="btn btn-ghost format-btn" data-format="pdf">PDF</button>' +
+            '<button type="button" class="btn btn-ghost format-btn" data-format="png">PNG</button>' +
+          '</div></div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="btn btn-ghost" data-action="modal-close">বাতিল</button>' +
+          '<button type="button" class="btn btn-primary" id="exportConfirmBtn" data-action="export-run" data-format="json" data-scope="'+scope+'">এক্সপোর্ট করো</button>' +
+        '</div>'
+      );
+      var scopeSel = document.getElementById('exportScopeSelect');
+      var confirmBtn = document.getElementById('exportConfirmBtn');
+      scopeSel.addEventListener('change', function(){ confirmBtn.dataset.scope = scopeSel.value; });
+      document.querySelectorAll('.format-btn').forEach(function(b){
+        b.addEventListener('click', function(){
+          document.querySelectorAll('.format-btn').forEach(function(x){ x.classList.remove('active'); });
+          b.classList.add('active');
+          confirmBtn.dataset.format = b.dataset.format;
+        });
+      });
+    }
+
+    /* ================= Event delegation ================= */
+    document.body.addEventListener('click', function(e){
+      var t = e.target.closest('[data-action]');
+      if(!t) return;
+      var action = t.dataset.action;
+      switch(action){
+        case 'modal-stop': break;
+        case 'modal-backdrop': closeModal(); break;
+        case 'modal-close': closeModal(); break;
+        case 'nav-switch': state.ui.activeTab = t.dataset.tab; expandedRows = new Set(); render(); break;
+        case 'nav-add-section': openSectionBuilder(null); break;
+        case 'open-settings': settingsTab='nav'; openSettings(); break;
+        case 'settings-tab': settingsTab = t.dataset.tab; renderSettingsModal(); break;
+        case 'nav-moveup': moveNav(t.dataset.id, -1); renderSettingsModal(); render(); break;
+        case 'nav-movedown': moveNav(t.dataset.id, 1); renderSettingsModal(); render(); break;
+        case 'nav-edit-section': openSectionBuilder(state.sections[t.dataset.id]); break;
+        case 'nav-delete':
+          confirmDialog('এই সেকশন ও এর সব ডেটা মুছে ফেলবে?', function(){ deleteNavItem(t.dataset.id); settingsTab='nav'; openSettings(); });
+          break;
+        case 'field-delete-student':
+          confirmDialog('এই ফিল্ড মুছে ফেলবে?', function(){ removeStudentField(t.dataset.key); settingsTab='studentFields'; openSettings(); });
+          break;
+        case 'field-edit-options': {
+          var f = state.studentSchema.find(function(x){ return x.key===t.dataset.key; });
+          if(!f) break;
+          openOptionsEditor('"'+f.label+'" এর অপশন', f.options||[], function(newOpts, renameMap){
+            f.options = newOpts;
+            if(renameMap){
+              state.students.forEach(function(s){
+                var v = s.fields[f.key];
+                if(v!==undefined && Object.prototype.hasOwnProperty.call(renameMap, v)) s.fields[f.key] = renameMap[v];
+              });
+            }
+            render(); settingsTab='studentFields'; openSettings();
+          });
+          break;
+        }
+        case 'option-add': optionsEditorList.push({id:uid(), text:'নতুন অপশন'}); renderOptionsEditorModal(); break;
+        case 'option-remove': optionsEditorList.splice(Number(t.dataset.idx),1); renderOptionsEditorModal(); break;
+        case 'option-moveup': {
+          var i1 = Number(t.dataset.idx);
+          if(i1>0){ var tmp1=optionsEditorList[i1]; optionsEditorList[i1]=optionsEditorList[i1-1]; optionsEditorList[i1-1]=tmp1; renderOptionsEditorModal(); }
+          break;
+        }
+        case 'option-movedown': {
+          var i2 = Number(t.dataset.idx);
+          if(i2<optionsEditorList.length-1){ var tmp2=optionsEditorList[i2]; optionsEditorList[i2]=optionsEditorList[i2+1]; optionsEditorList[i2+1]=tmp2; renderOptionsEditorModal(); }
+          break;
+        }
+        case 'option-save': {
+          var cleaned = optionsEditorList.map(function(o){ return o.text.trim(); }).filter(Boolean);
+          if(!cleaned.length) cleaned=['Option 1'];
+          var renameMap = {};
+          optionsEditorList.forEach(function(o){
+            var oldText = optionsEditorOriginalTextById[o.id];
+            if(oldText!==undefined && oldText!==o.text.trim() && o.text.trim()) renameMap[oldText]=o.text.trim();
+          });
+          if(optionsEditorOnSave) optionsEditorOnSave(cleaned, renameMap);
+          closeModal();
+          break;
+        }
+        case 'field-add-student': {
+          var labelInp = document.getElementById('newStudentFieldLabel');
+          var typeSel = document.getElementById('newStudentFieldType');
+          var optsInp = document.getElementById('newStudentFieldOptions');
+          var label = labelInp.value.trim();
+          if(!label){ toast('ফিল্ডের নাম লেখো'); break; }
+          var options = typeSel.value==='select' ? optsInp.value.split(',').map(function(x){return x.trim();}).filter(Boolean) : undefined;
+          if(typeSel.value==='select' && (!options || !options.length)) options=['Option 1'];
+          addStudentField({ key: slugify(label), label: label, type: typeSel.value, options: options });
+          settingsTab='studentFields'; openSettings();
+          break;
+        }
+        case 'data-reset': confirmDialog('সব ডেটা মুছে রিসেট করবে? এটি ফিরিয়ে আনা যাবে না।', function(){ resetAllData(); closeModal(); }); break;
+        case 'student-add': openStudentForm(null); break;
+        case 'student-edit': openStudentForm(state.students.find(function(s){ return s.id===t.dataset.id; })); break;
+        case 'student-delete': deleteStudentSoft(t.dataset.id); break;
+        case 'row-toggle':
+          if(expandedRows.has(t.dataset.id)) expandedRows.delete(t.dataset.id); else expandedRows.add(t.dataset.id);
+          render();
+          break;
+        case 'home-filter': homeFilter = t.dataset.filter; render(); break;
+        case 'open-export': openExportModal(t.dataset.scope); break;
+        case 'export-run': runExport(t.dataset.scope, t.dataset.format); break;
+        case 'fund-add-month': addMonth(); break;
+        case 'month-toggle': expandedMonth = (expandedMonth===t.dataset.key) ? null : t.dataset.key; render(); break;
+        case 'month-delete': confirmDialog('এই মাসের সব ডেটা মুছে ফেলবে?', function(){ deleteMonth(t.dataset.month); }); break;
+        case 'month-markall': markAllPaid(t.dataset.month); break;
+        case 'expense-add': openExpenseForm(null); break;
+        case 'expense-edit': openExpenseForm(state.fund.expenses.find(function(x){ return x.id===t.dataset.id; })); break;
+        case 'expense-delete': deleteExpenseSoft(t.dataset.id); break;
+        case 'section-entry-add': openSectionEntryForm(t.dataset.section, null); break;
+        case 'section-entry-edit': openSectionEntryForm(t.dataset.section, state.sections[t.dataset.section].entries.find(function(x){ return x.id===t.dataset.id; })); break;
+        case 'section-entry-delete': deleteSectionEntrySoft(t.dataset.section, t.dataset.id); break;
+        case 'builder-add-field': builderFields.push({key:null, label:'', type:'text'}); renderSectionBuilderModal(); break;
+        case 'builder-remove-field': builderFields.splice(Number(t.dataset.idx), 1); renderSectionBuilderModal(); break;
+        case 'confirm-yes': { var cb = pendingConfirm; pendingConfirm=null; closeModal(); if(cb) cb(); break; }
+        case 'confirm-no': pendingConfirm=null; closeModal(); break;
+        case 'toast-undo': {
+          if(toastUndoCb){ var ucb=toastUndoCb; toastUndoCb=null; ucb(); }
+          document.getElementById('toastContainer').classList.remove('show');
+          break;
+        }
+        case 'theme-toggle': {
+          var order = ['auto','light','dark'];
+          var tidx = order.indexOf((state.ui.theme||'auto'));
+          state.ui.theme = order[(tidx+1)%order.length];
+          applyTheme();
+          render();
+          break;
+        }
+        case 'dismiss-onboarding': state.ui.onboarded = true; render(); break;
+        case 'due-remind': {
+          var rs = state.students.find(function(x){ return x.id===t.dataset.id; });
+          if(rs) openReminderModal(rs, studentDue(rs.id));
+          break;
+        }
+        case 'reminder-copy': {
+          var ta2 = document.getElementById('reminderText');
+          var statusEl = document.getElementById('reminderCopyStatus');
+          if(ta2){
+            ta2.focus(); ta2.select();
+            var reportOk = function(){ if(statusEl) statusEl.textContent='কপি হয়েছে ✓'; };
+            var reportManual = function(){ if(statusEl) statusEl.textContent='মেসেজ সিলেক্ট করা আছে — এখন Ctrl/Cmd+C চাপো'; };
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(ta2.value).then(reportOk).catch(function(){
+                try{ if(document.execCommand('copy')) reportOk(); else reportManual(); }catch(e){ reportManual(); }
+              });
+            } else {
+              try{ if(document.execCommand('copy')) reportOk(); else reportManual(); }catch(e){ reportManual(); }
+            }
+          }
+          break;
+        }
+      }
+    });
+    document.body.addEventListener('keydown', function(e){
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        var t = e.target;
+        if(t && t.getAttribute && t.getAttribute('role')==='button' && t.dataset && t.dataset.action){
+          e.preventDefault();
+          t.click();
+        }
+      }
+    });
+    document.body.addEventListener('input', function(e){
+      var t = e.target;
+      if(!t.dataset || !t.dataset.action) return;
+      switch(t.dataset.action){
+        case 'home-search': homeSearch = t.value; render(); break;
+        case 'payment-amount': setPaymentAmount(t.dataset.month, t.dataset.student, t.value); render(); break;
+        case 'month-amount': setMonthAmount(t.dataset.month, t.value); render(); break;
+      }
+    });
+    document.body.addEventListener('change', function(e){
+      var t = e.target;
+      if(t.dataset && t.dataset.settingsField){
+        var key = t.dataset.settingsField;
+        if(key==='batchName') state.meta.batchName = t.value;
+        else if(key==='session') state.meta.session = t.value;
+        else if(key==='currency') state.meta.currency = t.value || '৳';
+        else if(key==='monthlyAmount') state.fund.monthlyAmount = Number(t.value||0);
+        render();
+        return;
+      }
+      if(!t.dataset || !t.dataset.action) return;
+      switch(t.dataset.action){
+        case 'payment-toggle': togglePayment(t.dataset.month, t.dataset.student, t.checked); render(); break;
+        case 'nav-relabel': renameNav(t.dataset.id, t.value); break;
+        case 'home-sort': homeSort = t.value; render(); break;
+      }
+    });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
+
+    /* ================= Init ================= */
+    document.addEventListener('DOMContentLoaded', function(){
+      state = migrateState(loadState());
+      applyTheme();
+      if(!state.nav.some(function(n){ return n.id===state.ui.activeTab; })) state.ui.activeTab='home';
+      if(state.fund.months.length){
+        expandedMonth = state.fund.months.slice().sort(function(a,b){ return b.key.localeCompare(a.key); })[0].key;
+      }
+      render();
+      getDownloads();
+    });
+  })();
+  </script>
+</body>
+</html>
